@@ -9,7 +9,7 @@ CREATE TABLE experiences (
 
     location VARCHAR(100),
 
-    start_date DATE NOT NULL,
+    start_date DATE,
 
     end_date DATE,
 
