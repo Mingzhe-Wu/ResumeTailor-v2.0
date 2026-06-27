@@ -18,8 +18,6 @@ public class Resume {
 
     private String generatedContent;
 
-    private String pdfFilePath;
-
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

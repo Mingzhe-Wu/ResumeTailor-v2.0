@@ -73,9 +73,8 @@ public class ResumeService {
 
         Resume resume = new Resume();
         resume.setJobId(request.getJobId());
+        
         resume.setMatchScore(request.getMatchScore());
-        resume.setGeneratedContent(request.getGeneratedContent());
-        resume.setPdfFilePath(request.getPdfFilePath());
 
         resumeMapper.insert(resume);
         return resume;
@@ -104,7 +103,6 @@ public class ResumeService {
         update.setId(id);
         update.setMatchScore(request.getMatchScore());
         update.setGeneratedContent(request.getGeneratedContent());
-        update.setPdfFilePath(request.getPdfFilePath());
 
         resumeMapper.updateById(update);
         return resumeMapper.findById(id);
@@ -166,7 +164,6 @@ public class ResumeService {
         resume.setJobId(jobId);
         resume.setGeneratedContent(aiResponse);
         resume.setMatchScore(null);
-        resume.setPdfFilePath(null);
 
         Resume existingResume = resumeMapper.findByJobId(jobId);
 
@@ -442,31 +439,6 @@ public class ResumeService {
         appendIfPresent(sb, "GitHub: ", profile.getGithubUrl());
 
         sb.append("</CandidateProfile>\n\n");
-
-        // =========================================================================
-        // Prior Resume
-        // =========================================================================
-
-        if (hasText(profile.getPriorResume())) {
-
-            sb.append("""
-            <PriorResumeReference>
-            Use this prior resume only as a lightweight writing-style and formatting reference.
-            
-            Do not treat the prior resume as additional candidate experience or hidden project context.
-            
-            Do not extract, expand, synthesize, or infer new engineering domains, projects, technologies, or technical narratives from the prior resume unless they are explicitly present in the structured candidate data provided below.
-            
-            Structured candidate data is the primary source of truth.
-            The prior resume should only help maintain writing tone, formatting consistency, and overall resume style.
-            
-            Prefer omission over extrapolation.
-            """);
-
-            sb.append(profile.getPriorResume()).append("\n");
-
-            sb.append("</PriorResumeReference>\n\n");
-        }
 
         // =========================================================================
         // Experiences

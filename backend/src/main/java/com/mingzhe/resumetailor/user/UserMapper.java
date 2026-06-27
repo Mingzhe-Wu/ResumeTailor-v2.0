@@ -16,7 +16,7 @@ public interface UserMapper {
     @Insert("""
         INSERT INTO users (
             email,
-            password
+            password_hash
         ) VALUES (
             #{email},
             #{password}
@@ -29,8 +29,12 @@ public interface UserMapper {
         SELECT
             id,
             email,
-            password,
-            created_at
+            password_hash AS password,
+            display_name,
+            role::text AS role,
+            status::text AS status,
+            created_at,
+            updated_at
         FROM users
         WHERE id = #{id}
         """)
@@ -40,8 +44,12 @@ public interface UserMapper {
         SELECT
             id,
             email,
-            password,
-            created_at
+            password_hash AS password,
+            display_name,
+            role::text AS role,
+            status::text AS status,
+            created_at,
+            updated_at
         FROM users
         WHERE email = #{email}
         """)
@@ -52,7 +60,9 @@ public interface UserMapper {
         UPDATE users
         <set>
             <if test="email != null">email = #{email},</if>
-            <if test="password != null">password = #{password},</if>
+            <if test="password != null">password_hash = #{password},</if>
+            <if test="displayName != null">display_name = #{displayName},</if>
+            updated_at = NOW()
         </set>
         WHERE id = #{id}
         </script>

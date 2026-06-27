@@ -18,6 +18,10 @@ public class Job {
 
     private String company;
 
+    private String location;
+
+    private String salary;
+
     private String jobDescription;
 
     private String sourceUrl;
@@ -25,6 +29,10 @@ public class Job {
     private Integer status;
 
     private LocalDateTime interviewTime;
+
+    private Integer priority;
+
+    private String notes;
 
     private LocalDateTime createdAt;
 

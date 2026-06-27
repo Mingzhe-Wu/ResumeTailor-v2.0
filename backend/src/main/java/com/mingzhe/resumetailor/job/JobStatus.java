@@ -1,20 +1,26 @@
 package com.mingzhe.resumetailor.job;
 
 public enum JobStatus {
-    SAVED(1),
-    APPLIED(2),
-    INTERVIEW(3),
-    OFFER(4),
-    REJECTED(5);
+    SAVED(1, "SAVED"),
+    APPLIED(2, "APPLIED"),
+    INTERVIEWING(3, "INTERVIEWING"),
+    OFFER(4, "OFFER"),
+    REJECTED(5, "REJECTED");
 
     private final int code;
+    private final String dbValue;
 
-    JobStatus(int code) {
+    JobStatus(int code, String dbValue) {
         this.code = code;
+        this.dbValue = dbValue;
     }
 
     public int getCode() {
         return code;
+    }
+
+    public String getDbValue() {
+        return dbValue;
     }
 
     // iterate over the codes to validate status

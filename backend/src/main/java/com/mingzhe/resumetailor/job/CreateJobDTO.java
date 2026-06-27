@@ -21,6 +21,10 @@ public class CreateJobDTO {
     @NotBlank(message = "company is required")
     private String company;
 
+    private String location;
+
+    private String salary;
+
     private String jobDescription;
 
     private String sourceUrl;
@@ -28,5 +32,9 @@ public class CreateJobDTO {
     private Integer status;
 
     private LocalDateTime interviewTime;
+
+    private Integer priority;
+
+    private String notes;
 
 }

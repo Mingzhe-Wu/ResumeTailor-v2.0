@@ -32,6 +32,4 @@ public class Profile {
 
     private LocalDateTime updatedAt;
 
-    private String priorResume;
-
 }

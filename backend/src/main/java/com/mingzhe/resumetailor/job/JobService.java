@@ -16,12 +16,6 @@ public class JobService {
     private final JobMapper jobMapper;
     private final UserMapper userMapper;
 
-    private static final int STATUS_SAVED = 1;
-    private static final int STATUS_APPLIED = 2;
-    private static final int STATUS_INTERVIEW = 3;
-    private static final int STATUS_OFFER = 4;
-    private static final int STATUS_REJECTED = 5;
-
     public JobService(JobMapper jobMapper, UserMapper userMapper) {
         this.jobMapper = jobMapper;
         this.userMapper = userMapper;
@@ -42,10 +36,14 @@ public class JobService {
         job.setUserId(request.getUserId());
         job.setTitle(request.getTitle());
         job.setCompany(request.getCompany());
+        job.setLocation(request.getLocation());
+        job.setSalary(request.getSalary());
         job.setJobDescription(request.getJobDescription());
         job.setSourceUrl(request.getSourceUrl());
         job.setStatus(status);
         job.setInterviewTime(request.getInterviewTime());
+        job.setPriority(request.getPriority());
+        job.setNotes(request.getNotes());
 
         jobMapper.insert(job);
         return job;
@@ -77,10 +75,14 @@ public class JobService {
         update.setId(id);
         update.setTitle(request.getTitle());
         update.setCompany(request.getCompany());
+        update.setLocation(request.getLocation());
+        update.setSalary(request.getSalary());
         update.setJobDescription(request.getJobDescription());
         update.setSourceUrl(request.getSourceUrl());
         update.setStatus(request.getStatus());
         update.setInterviewTime(request.getInterviewTime());
+        update.setPriority(request.getPriority());
+        update.setNotes(request.getNotes());
 
         jobMapper.updateById(update);
         return jobMapper.findById(id);

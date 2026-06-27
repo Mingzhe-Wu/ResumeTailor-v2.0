@@ -11,7 +11,4 @@ public class UpdateResumeDTO {
     private Integer matchScore;
 
     private String generatedContent;
-
-    private String pdfFilePath;
-
 }

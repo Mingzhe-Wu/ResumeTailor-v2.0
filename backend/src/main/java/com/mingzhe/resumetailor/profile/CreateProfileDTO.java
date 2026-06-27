@@ -32,6 +32,4 @@ public class CreateProfileDTO {
 
     private String summary;
 
-    private String priorResume;
-
 }
