@@ -4,11 +4,11 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
 
-    display_name VARCHAR(255) DEFAULT 'Anonymous User',
+    display_name VARCHAR(100) NOT NULL DEFAULT 'Anonymous User',
 
     role user_role NOT NULL DEFAULT 'USER',
     status user_status NOT NULL DEFAULT 'ACTIVE',
 
-    create_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

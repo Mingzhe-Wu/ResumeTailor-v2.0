@@ -3,16 +3,10 @@ CREATE TABLE resume_versions (
 
     job_id BIGINT NOT NULL,
 
-    version_number INTEGER NOT NULL,
-
     match_score INTEGER,
 
     generated_content TEXT NOT NULL,
-
-    prompt_version VARCHAR(50),
-
-    pdf_file_path VARCHAR(500),
-
+    
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
