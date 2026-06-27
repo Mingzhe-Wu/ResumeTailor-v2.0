@@ -1,8 +1,8 @@
 package com.mingzhe.resumetailor;
 
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -92,7 +92,7 @@ public class OpenAiService {
                     .get(0)
                     .path("message")
                     .path("content")
-                    .asString();
+                    .asText();
 
         } catch (Exception e) {
             e.printStackTrace();
