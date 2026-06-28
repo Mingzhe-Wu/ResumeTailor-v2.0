@@ -21,8 +21,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Business logic for validating and managing Resume records.
@@ -41,14 +39,6 @@ public class ResumeService {
     private final OpenAiService openAiService;
 
     private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
-
-    private static final long CACHE_TTL_MILLIS = 300_000;
-
-    private final Map<String, Long> resumeGenerateTimeCache = new ConcurrentHashMap<>();
-
-    private String buildCacheKey(Long jobId, Long profileId) {
-        return jobId + "_" + profileId;
-    }
 
     public ResumeService(JobMapper jobMapper, ProfileMapper profileMapper, ExperienceMapper experienceMapper, EducationMapper educationMapper, ProjectMapper projectMapper, SkillMapper skillMapper, ResumeMapper resumeMapper, OpenAiService openAiService) {
         this.jobMapper = jobMapper;
@@ -137,19 +127,7 @@ public class ResumeService {
     public String generateResume(Long jobId) {
         // fetch resume context with given job id
         ResumeGenerationContext context = fetchResumeContext(jobId);
-
-        // build cache key to check if resume already exists in the memory cache
-        Long profileId = context.getProfile().getId();
-        String cacheKey = buildCacheKey(jobId, profileId);
-
-        Long lastGeneratedAt = resumeGenerateTimeCache.get(cacheKey);
-
-        if (lastGeneratedAt != null &&
-                System.currentTimeMillis() - lastGeneratedAt < CACHE_TTL_MILLIS) {
-            log.info("Cache hit for jobId={}, profileId={}", jobId, profileId);
-            log.info("Resume generation skipped because it was generated within 60 seconds");
-            return "Skipped";
-        }
+        ensureGenerationAllowed(jobId);
 
         // build structured prompt for calling OpenAI api with the context
         String prompt = buildPrompt(context);
@@ -164,6 +142,7 @@ public class ResumeService {
         resume.setJobId(jobId);
         resume.setGeneratedContent(aiResponse);
         resume.setMatchScore(null);
+        resume.setNeedGenerate(false);
 
         Resume existingResume = resumeMapper.findByJobId(jobId);
 
@@ -174,10 +153,19 @@ public class ResumeService {
             resumeMapper.updateById(resume);
         }
 
-        // store the response in cache if first time generated
-        resumeGenerateTimeCache.put(cacheKey, System.currentTimeMillis());
-
         return "Resume Generated";
+    }
+
+    public void ensureGenerationAllowed(Long jobId) {
+        Job job = jobMapper.findById(jobId);
+        if (job == null) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        Resume existingResume = resumeMapper.findByJobId(jobId);
+        if (existingResume != null && !Boolean.TRUE.equals(existingResume.getNeedGenerate())) {
+            throw new BadRequestException("Resume is already up to date.");
+        }
     }
 
     private String callLlmWithRetry(String prompt) {

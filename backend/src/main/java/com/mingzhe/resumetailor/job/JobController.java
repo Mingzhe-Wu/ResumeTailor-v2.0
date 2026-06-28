@@ -31,6 +31,15 @@ public class JobController {
         return ResponseEntity.ok(jobService.fetchJobsByUserId(userId));
     }
 
+    @GetMapping("/fetchByKey/{userId}")
+    public ResponseEntity<List<Job>> searchByUserIdAndKeyword(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status
+    ) {
+        return ResponseEntity.ok(jobService.searchByUserIdAndKeyword(userId, keyword, status));
+    }
+
     @PutMapping("/update/{id}")
     public ResponseEntity<Job> updateJob(@PathVariable Long id,
                                          @RequestBody @Valid UpdateJobDTO request) {

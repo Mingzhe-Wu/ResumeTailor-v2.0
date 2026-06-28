@@ -28,6 +28,7 @@ public interface ResumeMapper {
             job_id,
             match_score,
             generated_content,
+            need_generate,
             created_at,
             updated_at
         FROM resume_versions
@@ -41,6 +42,7 @@ public interface ResumeMapper {
             job_id,
             match_score,
             generated_content,
+            need_generate,
             created_at,
             updated_at
         FROM resume_versions
@@ -56,12 +58,31 @@ public interface ResumeMapper {
         <set>
             <if test="matchScore != null">match_score = #{matchScore},</if>
             <if test="generatedContent != null">generated_content = #{generatedContent},</if>
+            <if test="needGenerate != null">need_generate = #{needGenerate},</if>
             updated_at = NOW()
         </set>
         WHERE id = #{id}
         </script>
         """)
     int updateById(Resume resume);
+
+    @Update("""
+        UPDATE resume_versions
+        SET need_generate = TRUE,
+            updated_at = NOW()
+        WHERE job_id = #{jobId}
+        """)
+    int markResumeDirtyByJobId(Long jobId);
+
+    @Update("""
+        UPDATE resume_versions rv
+        SET need_generate = TRUE,
+            updated_at = NOW()
+        FROM jobs j
+        WHERE rv.job_id = j.id
+          AND j.user_id = #{userId}
+        """)
+    int markResumeDirtyByUserId(Long userId);
 
     @Delete("""
         DELETE FROM resume_versions

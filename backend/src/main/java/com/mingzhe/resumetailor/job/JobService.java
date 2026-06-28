@@ -2,6 +2,7 @@ package com.mingzhe.resumetailor.job;
 
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import com.mingzhe.resumetailor.user.User;
 import com.mingzhe.resumetailor.user.UserMapper;
 import org.springframework.stereotype.Service;
@@ -16,10 +17,12 @@ public class JobService {
 
     private final JobMapper jobMapper;
     private final UserMapper userMapper;
+    private final ResumeMapper resumeMapper;
 
-    public JobService(JobMapper jobMapper, UserMapper userMapper) {
+    public JobService(JobMapper jobMapper, UserMapper userMapper, ResumeMapper resumeMapper) {
         this.jobMapper = jobMapper;
         this.userMapper = userMapper;
+        this.resumeMapper = resumeMapper;
     }
 
     public Job createJob(CreateJobDTO request) {
@@ -63,6 +66,23 @@ public class JobService {
         return jobMapper.findByUserId(userId);
     }
 
+    public List<Job> searchByUserIdAndKeyword(Long userId, String keyword, Integer status) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        if (status != null) {
+            try {
+                JobStatus.fromCode(status);
+            } catch (IllegalArgumentException ex) {
+                throw new BadRequestException(ex.getMessage());
+            }
+        }
+
+        return jobMapper.searchByUserIdAndKeyword(userId, keyword, status);
+    }
+
     public Job updateJob(Long id, UpdateJobDTO request) {
         // validate if user id exist in db
         Job existingJob = jobMapper.findById(id);
@@ -92,6 +112,7 @@ public class JobService {
         update.setNotes(request.getNotes());
 
         jobMapper.updateById(update);
+        resumeMapper.markResumeDirtyByJobId(id);
         return jobMapper.findById(id);
     }
 

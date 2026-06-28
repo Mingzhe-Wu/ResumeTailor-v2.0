@@ -4,6 +4,7 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,10 +22,12 @@ public class SkillService {
 
     private final SkillMapper skillMapper;
     private final ProfileMapper profileMapper;
+    private final ResumeMapper resumeMapper;
 
-    public SkillService(SkillMapper skillMapper, ProfileMapper profileMapper) {
+    public SkillService(SkillMapper skillMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper) {
         this.skillMapper = skillMapper;
         this.profileMapper = profileMapper;
+        this.resumeMapper = resumeMapper;
     }
 
     public Skill createSkill(CreateSkillDTO request) {
@@ -39,6 +42,7 @@ public class SkillService {
         skill.setName(request.getName());
 
         skillMapper.insert(skill);
+        resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         return skill;
     }
 
@@ -63,6 +67,10 @@ public class SkillService {
         update.setName(request.getName());
 
         skillMapper.updateById(update);
+        Profile profile = profileMapper.findById(existingSkill.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
         return skillMapper.findById(id);
     }
 
@@ -73,6 +81,10 @@ public class SkillService {
         }
 
         skillMapper.deleteById(id);
+        Profile profile = profileMapper.findById(existingSkill.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
     }
 
     public SkillImportResponseDTO importSkillsFromCsv(Long profileId, MultipartFile file) {
@@ -138,6 +150,10 @@ public class SkillService {
             }
         } catch (IOException ex) {
             throw new BadRequestException("Failed to read CSV file");
+        }
+
+        if (successCount > 0) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         }
 
         return new SkillImportResponseDTO(successCount, failedCount);

@@ -1,11 +1,6 @@
 package com.mingzhe.resumetailor.job;
 
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
@@ -106,6 +101,59 @@ public interface JobMapper {
         ORDER BY created_at DESC, id DESC
         """)
     List<Job> findByUserId(Long userId);
+
+    @Select("""
+        SELECT
+            id,
+            user_id,
+            title,
+            company,
+            location,
+            salary,
+            job_description,
+            source_url,
+            CASE status::text
+                WHEN 'SAVED' THEN 1
+                WHEN 'APPLIED' THEN 2
+                WHEN 'INTERVIEWING' THEN 3
+                WHEN 'OFFER' THEN 4
+                WHEN 'REJECTED' THEN 5
+            END AS status,
+            interview_time,
+            priority,
+            notes,
+            created_at,
+            updated_at
+        FROM jobs
+        WHERE user_id = #{userId}
+          AND (
+              #{keyword} IS NULL
+              OR TRIM(#{keyword}) = ''
+              OR title ILIKE '%' || #{keyword} || '%'
+              OR company ILIKE '%' || #{keyword} || '%'
+              OR location ILIKE '%' || #{keyword} || '%'
+              OR job_description ILIKE '%' || #{keyword} || '%'
+              OR notes ILIKE '%' || #{keyword} || '%'
+          )
+          AND (
+              #{status} IS NULL
+              OR status = (
+                  CASE #{status}
+                      WHEN 1 THEN 'SAVED'::job_status
+                      WHEN 2 THEN 'APPLIED'::job_status
+                      WHEN 3 THEN 'INTERVIEWING'::job_status
+                      WHEN 4 THEN 'OFFER'::job_status
+                      WHEN 5 THEN 'REJECTED'::job_status
+                  END
+              )
+          )
+        ORDER BY created_at DESC, id DESC
+        """)
+    List<Job> searchByUserIdAndKeyword(
+            @Param("userId") Long userId,
+            @Param("keyword") String keyword,
+            @Param("status") Integer status
+    );
 
     @Update("""
         <script>

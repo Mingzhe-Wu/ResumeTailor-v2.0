@@ -4,6 +4,7 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,10 +18,12 @@ public class ProjectService {
 
     private final ProjectMapper projectMapper;
     private final ProfileMapper profileMapper;
+    private final ResumeMapper resumeMapper;
 
-    public ProjectService(ProjectMapper projectMapper, ProfileMapper profileMapper) {
+    public ProjectService(ProjectMapper projectMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper) {
         this.projectMapper = projectMapper;
         this.profileMapper = profileMapper;
+        this.resumeMapper = resumeMapper;
     }
 
     public Project createProject(CreateProjectDTO request) {
@@ -43,6 +46,7 @@ public class ProjectService {
         project.setDescription(request.getDescription());
 
         projectMapper.insert(project);
+        resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         return project;
     }
 
@@ -81,6 +85,10 @@ public class ProjectService {
         update.setDescription(request.getDescription());
 
         projectMapper.updateById(update);
+        Profile profile = profileMapper.findById(existingProject.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
         return projectMapper.findById(id);
     }
 
@@ -91,6 +99,10 @@ public class ProjectService {
         }
 
         projectMapper.deleteById(id);
+        Profile profile = profileMapper.findById(existingProject.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
     }
 
 }

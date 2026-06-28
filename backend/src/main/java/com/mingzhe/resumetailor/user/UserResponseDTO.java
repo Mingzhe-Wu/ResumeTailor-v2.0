@@ -9,4 +9,6 @@ public class UserResponseDTO {
 
     private String email;
 
+    private String fullName;
+
 }

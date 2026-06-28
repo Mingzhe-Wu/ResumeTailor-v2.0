@@ -12,6 +12,7 @@ function App() {
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [registerFullName, setRegisterFullName] = useState("");
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -29,7 +30,6 @@ function App() {
     githubUrl: "",
     location: "",
     summary: "",
-    priorResume: "",
   });
 
   const emptyForms = {
@@ -80,48 +80,64 @@ function App() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [showJobModal, setShowJobModal] = useState(false);
   const [jobError, setJobError] = useState("");
+  const [jobSearchKeyword, setJobSearchKeyword] = useState("");
+  const [jobStatusFilter, setJobStatusFilter] = useState("");
 
   const [jobForm, setJobForm] = useState({
     title: "",
     company: "",
+    location: "",
+    salary: "",
     jobDescription: "",
     sourceUrl: "",
     status: 1,
     interviewTime: "",
+    priority: "",
+    notes: "",
   });
 
   const [selectedJobForm, setSelectedJobForm] = useState({
     title: "",
     company: "",
+    location: "",
+    salary: "",
     jobDescription: "",
     sourceUrl: "",
     status: 1,
     interviewTime: "",
+    priority: "",
+    notes: "",
   });
 
   const statusMap = {
     1: "Saved",
     2: "Applied",
-    3: "Interview",
+    3: "Interviewing",
     4: "Offer",
     5: "Rejected",
   };
 
-  const canSaveProfile =
-    profileForm.fullName.trim() !== "" &&
-    profileForm.contactEmail.trim() !== "";
+  const hasJobFilters =
+    jobSearchKeyword.trim() !== "" || jobStatusFilter !== "";
+
+  const canSaveProfile = profileForm.fullName.trim() !== "";
 
   const canCreateJob =
-    jobForm.title.trim() !== "" && jobForm.company.trim() !== "";
+    jobForm.title.trim() !== "" &&
+    jobForm.company.trim() !== "" &&
+    isValidOptionalPriority(jobForm.priority);
 
   const canUpdateJob =
     selectedJobForm.title.trim() !== "" &&
-    selectedJobForm.company.trim() !== "";
+    selectedJobForm.company.trim() !== "" &&
+    isValidOptionalPriority(selectedJobForm.priority);
 
   const [generatingJobId, setGeneratingJobId] = useState(null);
   const [generatedResume, setGeneratedResume] = useState(null);
-  const [showResumeModal, setShowResumeModal] = useState(false);
   const [resumeForm, setResumeForm] = useState("");
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumePanelError, setResumePanelError] = useState("");
+  const [resumePanelMessage, setResumePanelMessage] = useState("");
 
   const handleGenerateResume = async (jobId) => {
     const confirmed = window.confirm(
@@ -132,6 +148,9 @@ function App() {
     try {
       setError("");
       setMessage("");
+      setResumePanelError("");
+      setResumePanelMessage("");
+      setResumeLoading(true);
       setGeneratingJobId(jobId);
 
       await api.post(`/api/resume/generate-async/${jobId}`);
@@ -140,7 +159,16 @@ function App() {
 
       pollGeneratedResume(jobId);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to start resume generation.");
+      const backendMessage = err.response?.data?.message;
+      if (backendMessage === "Resume is already up to date.") {
+        setMessage(backendMessage);
+        setResumePanelMessage(backendMessage);
+        fetchResumeForJob(jobId, true);
+      } else {
+        setError(backendMessage || "Failed to start resume generation.");
+        setResumePanelError(backendMessage || "Failed to start resume generation.");
+      }
+      setResumeLoading(false);
       setGeneratingJobId(null);
     }
   };
@@ -154,6 +182,9 @@ function App() {
           clearInterval(intervalId);
           setGeneratedResume(res.data);
           setResumeForm(res.data.generatedContent || "");
+          setResumeLoading(false);
+          setResumePanelError("");
+          setResumePanelMessage("");
           setGeneratingJobId(null);
           setMessage("Resume generated successfully.");
         }
@@ -161,6 +192,8 @@ function App() {
         if (err.response?.status !== 404) {
           clearInterval(intervalId);
           setGeneratingJobId(null);
+          setResumeLoading(false);
+          setResumePanelError("Failed to check generated resume.");
           setError("Failed to check generated resume.");
         }
       }
@@ -173,14 +206,86 @@ function App() {
     }
   }, [token, user]);
 
+  useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      fetchJobs(selectedJob?.id);
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [jobSearchKeyword, jobStatusFilter]);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setMessage("");
+    }, 5000);
+
+    return () => clearTimeout(timeoutId);
+  }, [message]);
+
+  useEffect(() => {
+    if (!selectedJob) {
+      setGeneratedResume(null);
+      setResumeForm("");
+      setResumeLoading(false);
+      setResumePanelError("");
+      setResumePanelMessage("");
+      return;
+    }
+
+    fetchResumeForJob(selectedJob.id);
+  }, [selectedJob?.id]);
+
+  async function fetchResumeForJob(jobId, keepMessage = false) {
+    try {
+      if (!keepMessage) {
+        setResumePanelError("");
+        setResumePanelMessage("");
+      }
+      setResumeLoading(true);
+
+      const response = await api.get(`/api/resume/fetch/${jobId}`);
+
+      if (response.data) {
+        setGeneratedResume(response.data);
+        setResumeForm(response.data.generatedContent || "");
+      } else {
+        setGeneratedResume(null);
+        setResumeForm("");
+      }
+    } catch (err) {
+      setGeneratedResume(null);
+      setResumeForm("");
+
+      if (err.response?.status !== 404) {
+        setResumePanelError(
+          err.response?.data?.message || "Failed to fetch generated resume."
+        );
+      }
+    } finally {
+      setResumeLoading(false);
+    }
+  }
+
   function fillSelectedJobForm(job) {
     setSelectedJobForm({
       title: job.title || "",
       company: job.company || "",
+      location: job.location || "",
+      salary: job.salary || "",
       jobDescription: job.jobDescription || "",
       sourceUrl: job.sourceUrl || "",
       status: job.status || 1,
-      interviewTime: job.interviewTime || "",
+      interviewTime: formatDateTimeForInput(job.interviewTime),
+      priority: job.priority ?? "",
+      notes: job.notes || "",
     });
   }
 
@@ -193,7 +298,6 @@ function App() {
       githubUrl: profileData.githubUrl || "",
       location: profileData.location || "",
       summary: profileData.summary || "",
-      priorResume: profileData.priorResume || "",
     });
   }
 
@@ -206,7 +310,6 @@ function App() {
       githubUrl: "",
       location: "",
       summary: "",
-      priorResume: "",
     });
   }
 
@@ -228,6 +331,7 @@ function App() {
 
       setEmail("");
       setPassword("");
+      setRegisterFullName("");
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -246,26 +350,39 @@ function App() {
       await api.post("/api/auth/register", {
         email,
         password,
+        fullName: registerFullName,
       });
 
       setAuthMode("login");
       setPassword("");
+      setRegisterFullName("");
       setMessage("Register success. Please login.");
     } catch (err) {
       setError(err.response?.data?.message || "Register failed");
     }
   }
 
-  async function fetchJobs() {
+  async function fetchJobs(preferredJobId = null) {
     try {
       setJobError("");
 
-      const response = await api.get(`/api/job/fetch/${user.id}`);
+      const keyword = jobSearchKeyword.trim();
+      const response = hasJobFilters
+        ? await api.get(`/api/jobs/fetchByKey/${user.id}`, {
+            params: {
+              ...(keyword ? { keyword } : {}),
+              ...(jobStatusFilter ? { status: jobStatusFilter } : {}),
+            },
+          })
+        : await api.get(`/api/job/fetch/${user.id}`);
       setJobs(response.data);
 
       if (response.data.length > 0) {
-        setSelectedJob(response.data[0]);
-        fillSelectedJobForm(response.data[0]);
+        const nextSelectedJob =
+          response.data.find((job) => job.id === preferredJobId) ||
+          response.data[0];
+        setSelectedJob(nextSelectedJob);
+        fillSelectedJobForm(nextSelectedJob);
       } else {
         setSelectedJob(null);
       }
@@ -291,6 +408,7 @@ function App() {
     }
 
     await fetchProfileSections(profile.id);
+    await fetchJobs(selectedJob?.id);
     setMessage(`${capitalize(type)} deleted successfully.`);
   } catch (err) {
     setSectionError(
@@ -304,10 +422,14 @@ function App() {
     setJobForm({
       title: "",
       company: "",
+      location: "",
+      salary: "",
       jobDescription: "",
       sourceUrl: "",
       status: 1,
       interviewTime: "",
+      priority: "",
+      notes: "",
     });
     setShowJobModal(true);
   }
@@ -330,6 +452,29 @@ function App() {
     });
   }
 
+  function formatDateTimeForInput(value) {
+    return value ? String(value).slice(0, 16) : "";
+  }
+
+  function isValidOptionalPriority(value) {
+    return value === "" || Number(value) >= 0;
+  }
+
+  function normalizeSectionPayload(type, form, includeProfileId = false) {
+    const payload = includeProfileId ? { profileId: profile.id, ...form } : { ...form };
+
+    if (type === "education" && payload.gpa === "") {
+      payload.gpa = null;
+    }
+
+    if (["education", "experience", "project"].includes(type)) {
+      payload.startDate = payload.startDate || null;
+      payload.endDate = payload.endDate || null;
+    }
+
+    return payload;
+  }
+
   async function createJob() {
     if (!canCreateJob) return;
 
@@ -340,12 +485,14 @@ function App() {
         userId: user.id,
         ...jobForm,
         interviewTime: jobForm.interviewTime || null,
+        priority: jobForm.priority === "" ? null : Number(jobForm.priority),
       });
 
       setJobs([response.data, ...jobs]);
       setSelectedJob(response.data);
       fillSelectedJobForm(response.data);
       setShowJobModal(false);
+      await fetchJobs(response.data.id);
     } catch (err) {
       setJobError(err.response?.data?.message || "Failed to create job");
     }
@@ -358,9 +505,12 @@ function App() {
       setJobError("");
 
       const response = await api.put(`/api/job/update/${selectedJob.id}`, {
-        userId: user.id,
         ...selectedJobForm,
         interviewTime: selectedJobForm.interviewTime || null,
+        priority:
+          selectedJobForm.priority === ""
+            ? null
+            : Number(selectedJobForm.priority),
       });
 
       setSelectedJob(response.data);
@@ -369,6 +519,7 @@ function App() {
       setJobs(
         jobs.map((job) => (job.id === response.data.id ? response.data : job))
       );
+      await fetchJobs(response.data.id);
     } catch (err) {
       setJobError(err.response?.data?.message || "Failed to update job");
     }
@@ -419,6 +570,7 @@ function App() {
       setProfile(response.data);
       fillProfileForm(response.data);
       fetchProfileSections(response.data.id);
+      await fetchJobs(selectedJob?.id);
     } catch (err) {
       if (err.response?.status === 404) {
         setProfile(null);
@@ -455,6 +607,7 @@ function App() {
       setProfile(response.data);
       fillProfileForm(response.data);
       fetchProfileSections(response.data.id);
+      await fetchJobs(selectedJob?.id);
     } catch (err) {
       setProfileError(err.response?.data?.message || "Failed to create profile");
     }
@@ -467,7 +620,6 @@ function App() {
       setProfileError("");
 
       const response = await api.put(`/api/profile/update/${user.id}`, {
-        userId: user.id,
         ...profileForm,
       });
 
@@ -595,8 +747,7 @@ function App() {
     if (type === "experience") {
       return (
         form.companyName.trim() !== "" &&
-        form.position.trim() !== "" &&
-        form.startDate.trim() !== ""
+        form.position.trim() !== ""
       );
     }
 
@@ -614,14 +765,7 @@ function App() {
   async function addSection() {
     if (!profile || !canSaveSectionForm(sectionAddType, sectionAddForm)) return;
 
-    const payload = {
-      profileId: profile.id,
-      ...sectionAddForm,
-    };
-
-    if (payload.gpa === "") {
-      payload.gpa = null;
-    }
+    const payload = normalizeSectionPayload(sectionAddType, sectionAddForm, true);
 
     try {
       setSectionError("");
@@ -630,7 +774,8 @@ function App() {
 
       setShowSectionAddModal(false);
       setSectionAddForm(emptyForms[sectionAddType]);
-      fetchProfileSections(profile.id);
+      await fetchProfileSections(profile.id);
+      await fetchJobs(selectedJob?.id);
     } catch (err) {
       setSectionError(
         err.response?.data?.message || `Failed to add ${sectionAddType}`
@@ -658,6 +803,7 @@ function App() {
       );
 
       await fetchProfileSections(profile.id);
+      await fetchJobs(selectedJob?.id);
 
       setMessage(
         `Imported ${response.data.successCount} skills, failed ${response.data.failedCount} rows.`
@@ -674,14 +820,7 @@ function App() {
       return;
     }
 
-    const payload = {
-      profileId: profile.id,
-      ...sectionForm,
-    };
-
-    if (payload.gpa === "") {
-      payload.gpa = null;
-    }
+    const payload = normalizeSectionPayload(profileTab, sectionForm);
 
     try {
       setSectionError("");
@@ -690,7 +829,8 @@ function App() {
 
       setEditingItem(null);
       setSectionForm(emptyForms[profileTab]);
-      fetchProfileSections(profile.id);
+      await fetchProfileSections(profile.id);
+      await fetchJobs(selectedJob?.id);
     } catch (err) {
       setSectionError(
         err.response?.data?.message || `Failed to update ${profileTab}`
@@ -712,18 +852,29 @@ function App() {
     setSelectedJob(null);
   }
 
+  const greetingName = profile?.fullName?.trim() || user?.fullName || user?.email;
+
   if (token) {
     return (
       <div className="dashboard-page">
+        <div className="top-greeting">Hi, {greetingName}</div>
+
         <div className="top-right">
           <button className="email-button" onClick={openProfileModal}>
-            {user?.email}
+            Your Profile
           </button>
 
           <button className="secondary-button" onClick={logout}>
             Logout
           </button>
         </div>
+
+        {(error || message) && (
+          <div className="dashboard-alert">
+            {error && <p className="error-text">{error}</p>}
+            {message && <p className="success-text">{message}</p>}
+          </div>
+        )}
 
         <div className="dashboard-layout">
           <div className="job-list-panel">
@@ -737,10 +888,33 @@ function App() {
               </button>
             </div>
 
+            <div className="job-filter-row">
+              <input
+                className="job-search-input"
+                placeholder="Search jobs..."
+                value={jobSearchKeyword}
+                onChange={(e) => setJobSearchKeyword(e.target.value)}
+              />
+              <select
+                className="job-status-filter"
+                value={jobStatusFilter}
+                onChange={(e) => setJobStatusFilter(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="1">Saved</option>
+                <option value="2">Applied</option>
+                <option value="3">Interviewing</option>
+                <option value="4">Offer</option>
+                <option value="5">Rejected</option>
+              </select>
+            </div>
+
             {jobError && <p className="error-text">{jobError}</p>}
 
             {jobs.length === 0 ? (
-              <p className="empty-text">No jobs yet. Add your first job.</p>
+              <p className="empty-text">
+                {hasJobFilters ? "No jobs found." : "No jobs yet. Add your first job."}
+              </p>
             ) : (
               jobs.map((job) => (
                 <button
@@ -765,121 +939,224 @@ function App() {
 
           <div className="job-detail-panel">
             {selectedJob ? (
-              <>
-                <h2>Edit Job Detail</h2>
+              <div className="job-detail-card">
+                <div className="job-detail-heading">
+                  <div>
+                    <h2>Edit Job Detail</h2>
+                    <p>{selectedJob.company || "Company"} · {statusMap[selectedJob.status] || "Unknown"}</p>
+                  </div>
+                </div>
 
                 {jobError && <p className="error-text">{jobError}</p>}
 
-                <label>Title *</label>
-                <input
-                  name="title"
-                  value={selectedJobForm.title}
-                  onChange={handleSelectedJobChange}
-                />
+                <div className="job-field-grid">
+                  <div className="form-field">
+                    <label>Title <span className="required-marker">*</span></label>
+                    <input
+                      name="title"
+                      value={selectedJobForm.title}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
 
-                <label>Company *</label>
-                <input
-                  name="company"
-                  value={selectedJobForm.company}
-                  onChange={handleSelectedJobChange}
-                />
+                  <div className="form-field">
+                    <label>Company <span className="required-marker">*</span></label>
+                    <input
+                      name="company"
+                      value={selectedJobForm.company}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
 
-                <label>Status</label>
-                <select
-                  name="status"
-                  value={selectedJobForm.status}
-                  onChange={handleSelectedJobChange}
-                >
-                  <option value={1}>Saved</option>
-                  <option value={2}>Applied</option>
-                  <option value={3}>Interview</option>
-                  <option value={4}>Offer</option>
-                  <option value={5}>Rejected</option>
-                </select>
+                  <div className="form-field">
+                    <label>Location</label>
+                    <input
+                      name="location"
+                      value={selectedJobForm.location}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
 
-                <label>Source URL</label>
-                <input
-                  name="sourceUrl"
-                  value={selectedJobForm.sourceUrl}
-                  onChange={handleSelectedJobChange}
-                />
+                  <div className="form-field">
+                    <label>Salary</label>
+                    <input
+                      name="salary"
+                      value={selectedJobForm.salary}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
 
-                <label>Interview Time</label>
-                <input
-                  type="datetime-local"
-                  name="interviewTime"
-                  value={selectedJobForm.interviewTime}
-                  onChange={handleSelectedJobChange}
-                />
+                  <div className="form-field">
+                    <label>Status</label>
+                    <select
+                      name="status"
+                      value={selectedJobForm.status}
+                      onChange={handleSelectedJobChange}
+                    >
+                      <option value={1}>Saved</option>
+                      <option value={2}>Applied</option>
+                      <option value={3}>Interview</option>
+                      <option value={4}>Offer</option>
+                      <option value={5}>Rejected</option>
+                    </select>
+                  </div>
 
-                <label>Job Description</label>
-                <textarea
-                  name="jobDescription"
-                  value={selectedJobForm.jobDescription}
-                  onChange={handleSelectedJobChange}
-                />
+                  <div className="form-field">
+                    <label>Source URL</label>
+                    <input
+                      name="sourceUrl"
+                      value={selectedJobForm.sourceUrl}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
 
-                <button
-                  className="primary-button"
-                  disabled={!canUpdateJob}
-                  onClick={updateJob}
-                >
-                  Save Job
-                </button>
-                <button
-    className="primary-button"
-    onClick={deleteJob}
-  >
-    Delete Job
-  </button>
+                  <div className="form-field">
+                    <label>Interview Time</label>
+                    <input
+                      type="datetime-local"
+                      name="interviewTime"
+                      value={selectedJobForm.interviewTime}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => handleGenerateResume(selectedJob.id)}
-                  disabled={generatingJobId === selectedJob.id}
-                >
-                  {generatingJobId === selectedJob.id
-                    ? "Generating..."
-                    : "Generate Resume"}
-                </button>
+                  <div className="form-field">
+                    <label>Priority</label>
+                    <input
+                      type="number"
+                      min="0"
+                      name="priority"
+                      value={selectedJobForm.priority}
+                      onChange={handleSelectedJobChange}
+                    />
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={async () => {
-                    try {
-                      setError("");
+                <div className="form-field full-row">
+                  <label>Job Description</label>
+                  <textarea
+                    className="job-description-input"
+                    name="jobDescription"
+                    value={selectedJobForm.jobDescription}
+                    onChange={handleSelectedJobChange}
+                  />
+                </div>
 
-                      const res = await api.get(
-                        `/api/resume/fetch/${selectedJob.id}`
-                      );
+                <div className="form-field full-row">
+                  <label>Notes</label>
+                  <textarea
+                    className="job-notes-input"
+                    name="notes"
+                    value={selectedJobForm.notes}
+                    onChange={handleSelectedJobChange}
+                  />
+                </div>
 
-                      if (!res.data) {
-                        alert("This job does not have a generated resume yet.");
-                        return;
-                      }
+                <div className="job-action-row">
+                  <button
+                    className="primary-button"
+                    disabled={!canUpdateJob}
+                    onClick={updateJob}
+                  >
+                    Save Job
+                  </button>
+                  <button
+                    className="secondary-button danger-button"
+                    onClick={deleteJob}
+                  >
+                    Delete Job
+                  </button>
 
-                      setGeneratedResume(res.data);
-                      setResumeForm(res.data.generatedContent || "");
-                      setShowResumeModal(true);
-                    } catch (err) {
-                      alert(
-                        err.response?.data?.message ||
-                          "This job does not have a generated resume yet."
-                      );
-                    }
-                  }}
-                >
-                  View / Edit Generated Resume
-                </button>
-              </>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => handleGenerateResume(selectedJob.id)}
+                    disabled={generatingJobId === selectedJob.id}
+                  >
+                    {generatingJobId === selectedJob.id
+                      ? "Generating..."
+                      : "Generate Resume"}
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="empty-detail">
                 <h2>No job selected</h2>
                 <p>Add or select a job to view details.</p>
               </div>
             )}
+          </div>
+
+          <div className="resume-preview-panel">
+            <div className="resume-preview-card">
+              <div className="resume-preview-header">
+                <div>
+                  <h2>Resume Preview</h2>
+                  <p>
+                    {selectedJob
+                      ? `${selectedJob.title || "Selected job"} at ${selectedJob.company || "Company"}`
+                      : "No job selected"}
+                  </p>
+                </div>
+              </div>
+
+              {!selectedJob ? (
+                <div className="resume-empty-state">
+                  <h3>Select a job</h3>
+                  <p>Select a job to view or generate a resume.</p>
+                </div>
+              ) : resumeLoading ? (
+                <div className="resume-empty-state">
+                  <h3>Generating resume...</h3>
+                  <p>This panel will update when the resume is ready.</p>
+                </div>
+              ) : resumePanelError ? (
+                <div className="resume-empty-state resume-error-state">
+                  <h3>Resume unavailable</h3>
+                  <p>{resumePanelError}</p>
+                </div>
+              ) : generatedResume ? (
+                <>
+                  {resumePanelMessage && (
+                    <p className="resume-panel-message">{resumePanelMessage}</p>
+                  )}
+
+                  <textarea
+                    className="resume-preview-editor"
+                    value={resumeForm}
+                    onChange={(e) => setResumeForm(e.target.value)}
+                  />
+
+                  <div className="resume-preview-actions">
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={resumeForm.trim() === ""}
+                      onClick={async () => {
+                        await api.put(`/api/resume/update/${generatedResume.id}`, {
+                          generatedContent: resumeForm,
+                        });
+
+                        setGeneratedResume({
+                          ...generatedResume,
+                          generatedContent: resumeForm,
+                        });
+
+                        setResumePanelMessage("Resume saved successfully.");
+                        setMessage("Resume saved successfully.");
+                      }}
+                    >
+                      Save Resume
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="resume-empty-state">
+                  <h3>No resume generated yet.</h3>
+                  <p>Click Generate Resume to create one.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -908,6 +1185,20 @@ function App() {
               <input
                 name="company"
                 value={jobForm.company}
+                onChange={handleJobChange}
+              />
+
+              <label>Location</label>
+              <input
+                name="location"
+                value={jobForm.location}
+                onChange={handleJobChange}
+              />
+
+              <label>Salary</label>
+              <input
+                name="salary"
+                value={jobForm.salary}
                 onChange={handleJobChange}
               />
 
@@ -943,6 +1234,22 @@ function App() {
                 type="datetime-local"
                 name="interviewTime"
                 value={jobForm.interviewTime}
+                onChange={handleJobChange}
+              />
+
+              <label>Priority</label>
+              <input
+                type="number"
+                min="0"
+                name="priority"
+                value={jobForm.priority}
+                onChange={handleJobChange}
+              />
+
+              <label>Notes</label>
+              <textarea
+                name="notes"
+                value={jobForm.notes}
                 onChange={handleJobChange}
               />
 
@@ -1067,48 +1374,6 @@ function App() {
           </div>
         )}
 
-        {showResumeModal && (
-          <div className="modal-overlay">
-            <div className="profile-modal large-modal">
-              <h2>Generated Resume</h2>
-
-              <textarea
-                value={resumeForm}
-                onChange={(e) => setResumeForm(e.target.value)}
-                rows={30}
-                style={{ width: "100%", minHeight: "600px" }}
-              />
-
-              <button
-                type="button"
-                className="primary-button"
-                onClick={async () => {
-                  await api.put(`/api/resume/update/${generatedResume.id}`, {
-                    generatedContent: resumeForm,
-                  });
-
-                  setGeneratedResume({
-                    ...generatedResume,
-                    generatedContent: resumeForm,
-                  });
-
-                  setShowResumeModal(false);
-                  setMessage("Resume saved successfully.");
-                }}
-              >
-                Save Resume
-              </button>
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowResumeModal(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1148,6 +1413,7 @@ function App() {
         <div className="form-section">
           <label>Email</label>
           <input
+            type="email"
             placeholder="test@gmail.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -1160,6 +1426,17 @@ function App() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+
+          {authMode === "register" && (
+            <>
+              <label>Full Name</label>
+              <input
+                placeholder="Optional"
+                value={registerFullName}
+                onChange={(e) => setRegisterFullName(e.target.value)}
+              />
+            </>
+          )}
 
           {error && <p className="error-text">{error}</p>}
           {message && <p className="success-text">{message}</p>}
@@ -1208,8 +1485,9 @@ function ProfileForm({
         onChange={handleProfileChange}
       />
 
-      <label>Contact Email *</label>
+      <label>Contact Email</label>
       <input
+        type="email"
         name="contactEmail"
         value={profileForm.contactEmail}
         onChange={handleProfileChange}
@@ -1241,14 +1519,6 @@ function ProfileForm({
         name="summary"
         value={profileForm.summary}
         onChange={handleProfileChange}
-      />
-
-      <label>Prior Resume</label>
-      <textarea
-        name="priorResume"
-        value={profileForm.priorResume}
-        onChange={handleProfileChange}
-        rows={12}
       />
 
       <button
@@ -1394,7 +1664,7 @@ function SectionFields({ type, form, handleChange }) {
         <label>Location</label>
         <input name="location" value={form.location} onChange={handleChange} />
 
-        <label>Start Date *</label>
+        <label>Start Date</label>
         <input
           type="date"
           name="startDate"

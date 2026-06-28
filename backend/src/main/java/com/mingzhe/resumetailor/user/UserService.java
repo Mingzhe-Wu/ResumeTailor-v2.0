@@ -3,6 +3,8 @@ package com.mingzhe.resumetailor.user;
 import com.mingzhe.resumetailor.auth.UserRequestDTO;
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
+import com.mingzhe.resumetailor.profile.Profile;
+import com.mingzhe.resumetailor.profile.ProfileMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,39 +16,62 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final ProfileMapper profileMapper;
 
-    public UserService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    private static final String DEFAULT_FULL_NAME = "Anonymous User";
+
+    public UserService(UserMapper userMapper, PasswordEncoder passwordEncoder, ProfileMapper profileMapper) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.profileMapper = profileMapper;
     }
 
     public UserResponseDTO register(UserRequestDTO request) {
-        User user = createUserEntity(request.getEmail(), request.getPassword(), request.getDisplayName());
-
-        UserResponseDTO response = new UserResponseDTO();
-        response.setId(user.getId());
-        response.setEmail(user.getEmail());
-
-        return response;
+        return createUserWithProfile(request.getEmail(), request.getPassword(), request.getFullName());
     }
 
-    public User createUser(CreateUserDTO request) {
-        return createUserEntity(request.getEmail(), request.getPassword(), request.getDisplayName());
+    public UserResponseDTO createUser(CreateUserDTO request) {
+        return createUserWithProfile(request.getEmail(), request.getPassword(), request.getFullName());
     }
 
-    private User createUserEntity(String email, String password, String displayName) {
+    private UserResponseDTO createUserWithProfile(String email, String password, String fullName) {
         User existingUser = userMapper.findByEmail(email);
         if (existingUser != null) {
             throw new BadRequestException("User already exists with this email");
         }
 
+        String resolvedFullName = resolveFullName(fullName);
+
         User user = new User();
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
-        user.setDisplayName(displayName);
 
         userMapper.insert(user);
-        return user;
+        createProfileIfMissing(user.getId(), resolvedFullName);
+
+        UserResponseDTO response = new UserResponseDTO();
+        response.setId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setFullName(resolvedFullName);
+        return response;
+    }
+
+    private void createProfileIfMissing(Long userId, String fullName) {
+        if (profileMapper.findByUserId(userId) != null) {
+            return;
+        }
+
+        Profile profile = new Profile();
+        profile.setUserId(userId);
+        profile.setFullName(fullName);
+        profileMapper.insert(profile);
+    }
+
+    private String resolveFullName(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            return DEFAULT_FULL_NAME;
+        }
+        return fullName.trim();
     }
 
     public User fetchUserById(Long id) {
@@ -85,7 +110,6 @@ public class UserService {
         if (request.getPassword() != null) {
             update.setPassword(passwordEncoder.encode(request.getPassword()));
         }
-        update.setDisplayName(request.getDisplayName());
 
         userMapper.updateById(update);
         return userMapper.findById(id);

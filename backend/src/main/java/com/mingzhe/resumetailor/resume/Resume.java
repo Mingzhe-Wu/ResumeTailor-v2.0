@@ -18,6 +18,8 @@ public class Resume {
 
     private String generatedContent;
 
+    private Boolean needGenerate;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

@@ -2,6 +2,7 @@ package com.mingzhe.resumetailor.profile;
 
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 
 /**
@@ -10,9 +11,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class ProfileService {
     private final ProfileMapper profileMapper;
+    private final ResumeMapper resumeMapper;
 
-    public ProfileService(ProfileMapper profileMapper) {
+    public ProfileService(ProfileMapper profileMapper, ResumeMapper resumeMapper) {
         this.profileMapper = profileMapper;
+        this.resumeMapper = resumeMapper;
     }
 
     // Construct the profile entity from the uploaded profile DTO and call the mapper
@@ -33,6 +36,7 @@ public class ProfileService {
         profileEntity.setLocation(profile.getLocation());
         profileEntity.setSummary(profile.getSummary());
         profileMapper.insert(profileEntity);
+        resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         return profileEntity;
     }
 
@@ -60,6 +64,7 @@ public class ProfileService {
         update.setSummary(request.getSummary());
 
         profileMapper.updateById(update);
+        resumeMapper.markResumeDirtyByUserId(userId);
         return profileMapper.findByUserId(userId);
     }
 

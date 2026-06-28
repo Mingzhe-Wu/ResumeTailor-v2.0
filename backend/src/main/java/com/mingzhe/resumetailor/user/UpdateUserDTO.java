@@ -17,6 +17,4 @@ public class UpdateUserDTO {
     @Pattern(regexp = ".*\\S.*", message = "password must not be blank")
     private String password;
 
-    private String displayName;
-
 }

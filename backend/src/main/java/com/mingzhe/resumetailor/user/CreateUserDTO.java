@@ -17,6 +17,6 @@ public class CreateUserDTO {
     @NotBlank(message = "password is required")
     private String password;
 
-    private String displayName;
+    private String fullName;
 
 }

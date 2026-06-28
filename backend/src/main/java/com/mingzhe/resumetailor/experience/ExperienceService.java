@@ -4,6 +4,7 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,10 +18,12 @@ public class ExperienceService {
 
     private final ExperienceMapper experienceMapper;
     private final ProfileMapper profileMapper;
+    private final ResumeMapper resumeMapper;
 
-    public ExperienceService(ExperienceMapper experienceMapper, ProfileMapper profileMapper) {
+    public ExperienceService(ExperienceMapper experienceMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper) {
         this.experienceMapper = experienceMapper;
         this.profileMapper = profileMapper;
+        this.resumeMapper = resumeMapper;
     }
 
     // Create a new experience under given profile id
@@ -46,6 +49,7 @@ public class ExperienceService {
         experience.setDescription(request.getDescription());
 
         experienceMapper.insert(experience);
+        resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         return experience;
     }
 
@@ -88,6 +92,10 @@ public class ExperienceService {
         update.setDescription(request.getDescription());
 
         experienceMapper.updateById(update);
+        Profile profile = profileMapper.findById(existingExperience.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
         return experienceMapper.findById(id);
     }
 
@@ -99,6 +107,10 @@ public class ExperienceService {
         }
 
         experienceMapper.deleteById(id);
+        Profile profile = profileMapper.findById(existingExperience.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
     }
 
 }

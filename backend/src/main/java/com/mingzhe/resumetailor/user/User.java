@@ -16,8 +16,6 @@ public class User {
 
     private String password;
 
-    private String displayName;
-
     private String role;
 
     private String status;

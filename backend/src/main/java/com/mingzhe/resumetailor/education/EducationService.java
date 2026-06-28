@@ -4,6 +4,7 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -18,10 +19,12 @@ public class EducationService {
 
     private final EducationMapper educationMapper;
     private final ProfileMapper profileMapper;
+    private final ResumeMapper resumeMapper;
 
-    public EducationService(EducationMapper educationMapper, ProfileMapper profileMapper) {
+    public EducationService(EducationMapper educationMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper) {
         this.educationMapper = educationMapper;
         this.profileMapper = profileMapper;
+        this.resumeMapper = resumeMapper;
     }
 
     public Education createEducation(CreateEducationDTO request) {
@@ -51,6 +54,7 @@ public class EducationService {
         education.setDescription(request.getDescription());
 
         educationMapper.insert(education);
+        resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         return education;
     }
 
@@ -96,6 +100,10 @@ public class EducationService {
         update.setDescription(request.getDescription());
 
         educationMapper.updateById(update);
+        Profile profile = profileMapper.findById(existingEducation.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
         return educationMapper.findById(id);
     }
 
@@ -106,6 +114,10 @@ public class EducationService {
         }
 
         educationMapper.deleteById(id);
+        Profile profile = profileMapper.findById(existingEducation.getProfileId());
+        if (profile != null) {
+            resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+        }
     }
 
     private boolean isValidGpa(BigDecimal gpa) {

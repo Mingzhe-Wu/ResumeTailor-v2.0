@@ -16,12 +16,10 @@ public interface UserMapper {
     @Insert("""
         INSERT INTO users (
             email,
-            password_hash,
-            display_name
+            password_hash
         ) VALUES (
             #{email},
-            #{password},
-            COALESCE(#{displayName}, 'Anonymous User')
+            #{password}
         )
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
@@ -32,7 +30,6 @@ public interface UserMapper {
             id,
             email,
             password_hash AS password,
-            display_name,
             role::text AS role,
             status::text AS status,
             created_at,
@@ -47,7 +44,6 @@ public interface UserMapper {
             id,
             email,
             password_hash AS password,
-            display_name,
             role::text AS role,
             status::text AS status,
             created_at,
@@ -63,7 +59,6 @@ public interface UserMapper {
         <set>
             <if test="email != null">email = #{email},</if>
             <if test="password != null">password_hash = #{password},</if>
-            <if test="displayName != null">display_name = #{displayName},</if>
             updated_at = NOW()
         </set>
         WHERE id = #{id}
