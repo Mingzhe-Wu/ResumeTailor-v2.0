@@ -1,5 +1,6 @@
 package com.mingzhe.resumetailor.experience;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -10,8 +11,10 @@ import java.time.LocalDate;
 @Data
 public class UpdateExperienceDTO {
 
+    @Pattern(regexp = ".*\\S.*", message = "companyName must not be blank")
     private String companyName;
 
+    @Pattern(regexp = ".*\\S.*", message = "position must not be blank")
     private String position;
 
     private String location;

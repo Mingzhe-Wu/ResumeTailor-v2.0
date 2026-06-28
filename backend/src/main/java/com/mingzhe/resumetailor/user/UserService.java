@@ -21,18 +21,7 @@ public class UserService {
     }
 
     public UserResponseDTO register(UserRequestDTO request) {
-        User existingUser = userMapper.findByEmail(request.getEmail());
-        if (existingUser != null) {
-            throw new BadRequestException("User already exists with this email");
-        }
-
-        User user = new User();
-        user.setEmail(request.getEmail());
-
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-        user.setPassword(encodedPassword);
-
-        userMapper.insert(user);
+        User user = createUserEntity(request.getEmail(), request.getPassword(), request.getDisplayName());
 
         UserResponseDTO response = new UserResponseDTO();
         response.setId(user.getId());
@@ -42,14 +31,19 @@ public class UserService {
     }
 
     public User createUser(CreateUserDTO request) {
-        User existingUser = userMapper.findByEmail(request.getEmail());
+        return createUserEntity(request.getEmail(), request.getPassword(), request.getDisplayName());
+    }
+
+    private User createUserEntity(String email, String password, String displayName) {
+        User existingUser = userMapper.findByEmail(email);
         if (existingUser != null) {
             throw new BadRequestException("User already exists with this email");
         }
 
         User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setDisplayName(displayName);
 
         userMapper.insert(user);
         return user;
@@ -88,7 +82,10 @@ public class UserService {
         User update = new User();
         update.setId(id);
         update.setEmail(request.getEmail());
-        update.setPassword(request.getPassword());
+        if (request.getPassword() != null) {
+            update.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+        update.setDisplayName(request.getDisplayName());
 
         userMapper.updateById(update);
         return userMapper.findById(id);

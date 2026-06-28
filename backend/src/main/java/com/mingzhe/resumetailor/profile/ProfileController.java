@@ -33,7 +33,7 @@ public class ProfileController {
     // Update the profile of a given user id
     @PutMapping("/update/{userId}")
     public ResponseEntity<Profile> updateProfile (@PathVariable Long userId,
-                                                  @RequestBody UpdateProfileDTO request) {
+                                                  @RequestBody @Valid UpdateProfileDTO request) {
         return ResponseEntity.ok(profileService.updateProfile(userId, request));
     }
 

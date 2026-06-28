@@ -1,11 +1,12 @@
 package com.mingzhe.resumetailor.profile;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 // DTO for profile creation
-// userID, fullName, and contactEmail required
+// userId and fullName required
 
 /**
  * Request body used when creating Profile records.
@@ -21,7 +22,7 @@ public class CreateProfileDTO {
 
     private String phone;
 
-    @NotBlank(message = "contactEmail is required for profile")
+    @Email(message = "contactEmail must be valid")
     private String contactEmail;
 
     private String linkedinUrl;

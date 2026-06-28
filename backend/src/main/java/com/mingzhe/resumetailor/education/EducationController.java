@@ -33,7 +33,7 @@ public class EducationController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Education> updateEducation(@PathVariable Long id,
-                                                     @RequestBody UpdateEducationDTO request) {
+                                                     @RequestBody @Valid UpdateEducationDTO request) {
         return ResponseEntity.ok(educationService.updateEducation(id, request));
     }
 

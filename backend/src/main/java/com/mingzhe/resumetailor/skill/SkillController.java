@@ -35,7 +35,7 @@ public class SkillController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Skill> updateSkill(@PathVariable Long id,
-                                             @RequestBody UpdateSkillDTO request) {
+                                             @RequestBody @Valid UpdateSkillDTO request) {
         return ResponseEntity.ok(skillService.updateSkill(id, request));
     }
 

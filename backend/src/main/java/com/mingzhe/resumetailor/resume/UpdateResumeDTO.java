@@ -1,5 +1,6 @@
 package com.mingzhe.resumetailor.resume;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 /**
@@ -10,5 +11,6 @@ public class UpdateResumeDTO {
 
     private Integer matchScore;
 
+    @Pattern(regexp = ".*\\S.*", message = "generatedContent must not be blank")
     private String generatedContent;
 }

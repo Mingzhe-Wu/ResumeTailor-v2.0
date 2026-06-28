@@ -13,15 +13,9 @@ public class CreateResumeDTO {
     @NotNull(message = "jobId is required")
     private Long jobId;
 
-    private Integer versionNumber;
-
     private Integer matchScore;
 
     @NotBlank(message = "generatedContent is required")
     private String generatedContent;
-
-    private String promptVersion;
-
-    private String pdfFilePath;
 
 }

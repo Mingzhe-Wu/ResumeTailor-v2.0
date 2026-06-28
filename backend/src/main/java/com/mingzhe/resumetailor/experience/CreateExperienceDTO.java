@@ -23,7 +23,6 @@ public class CreateExperienceDTO {
 
     private String location;
 
-    @NotNull(message = "startDate is required")
     private LocalDate startDate;
 
     private LocalDate endDate;

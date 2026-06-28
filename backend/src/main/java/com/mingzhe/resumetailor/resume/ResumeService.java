@@ -73,8 +73,8 @@ public class ResumeService {
 
         Resume resume = new Resume();
         resume.setJobId(request.getJobId());
-        
         resume.setMatchScore(request.getMatchScore());
+        resume.setGeneratedContent(request.getGeneratedContent());
 
         resumeMapper.insert(resume);
         return resume;

@@ -2,6 +2,7 @@ package com.mingzhe.resumetailor.auth;
 
 import com.mingzhe.resumetailor.user.UserResponseDTO;
 import com.mingzhe.resumetailor.user.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,13 +21,13 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UserResponseDTO> register(@RequestBody UserRequestDTO request) {
+    public ResponseEntity<UserResponseDTO> register(@RequestBody @Valid UserRequestDTO request) {
         UserResponseDTO response = userService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(@RequestBody UserRequestDTO request) {
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody @Valid UserRequestDTO request) {
         LoginResponseDTO response = authService.login(request);
         return ResponseEntity.ok(response);
     }

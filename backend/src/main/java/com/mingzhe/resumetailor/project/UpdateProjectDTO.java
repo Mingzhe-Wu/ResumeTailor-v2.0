@@ -1,5 +1,6 @@
 package com.mingzhe.resumetailor.project;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 @Data
 public class UpdateProjectDTO {
 
+    @Pattern(regexp = ".*\\S.*", message = "projectName must not be blank")
     private String projectName;
 
     private String techStack;

@@ -16,10 +16,12 @@ public interface UserMapper {
     @Insert("""
         INSERT INTO users (
             email,
-            password_hash
+            password_hash,
+            display_name
         ) VALUES (
             #{email},
-            #{password}
+            #{password},
+            COALESCE(#{displayName}, 'Anonymous User')
         )
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")

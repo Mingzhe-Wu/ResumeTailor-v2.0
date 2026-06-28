@@ -31,7 +31,7 @@ public class ResumeController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Resume> updateResume(@PathVariable Long id,
-                                               @RequestBody UpdateResumeDTO request) {
+                                               @RequestBody @Valid UpdateResumeDTO request) {
         return ResponseEntity.ok(resumeService.updateResume(id, request));
     }
 

@@ -1,9 +1,10 @@
 package com.mingzhe.resumetailor.profile;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 // DTO for profile update
-// fullName, and contactEmail required
 
 /**
  * Request body used when updating Profile records.
@@ -11,10 +12,12 @@ import lombok.Data;
 @Data
 public class UpdateProfileDTO {
 
+    @Pattern(regexp = ".*\\S.*", message = "fullName must not be blank")
     private String fullName;
 
     private String phone;
 
+    @Email(message = "contactEmail must be valid")
     private String contactEmail;
 
     private String linkedinUrl;

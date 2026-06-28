@@ -1,5 +1,6 @@
 package com.mingzhe.resumetailor.job;
 
+import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.user.User;
 import com.mingzhe.resumetailor.user.UserMapper;
@@ -24,7 +25,10 @@ public class JobService {
     public Job createJob(CreateJobDTO request) {
         // use enum to validate status if provided
         Integer status = request.getStatus() == null ? 1 : request.getStatus();
-        JobStatus.fromCode(status);
+        validateStatus(status);
+
+        Integer priority = request.getPriority() == null ? 0 : request.getPriority();
+        validatePriority(priority);
 
         // validate if user id exist in db
         User user = userMapper.findById(request.getUserId());
@@ -42,7 +46,7 @@ public class JobService {
         job.setSourceUrl(request.getSourceUrl());
         job.setStatus(status);
         job.setInterviewTime(request.getInterviewTime());
-        job.setPriority(request.getPriority());
+        job.setPriority(priority);
         job.setNotes(request.getNotes());
 
         jobMapper.insert(job);
@@ -68,7 +72,10 @@ public class JobService {
 
         // use enum to validate status if provided
         if (request.getStatus() != null) {
-            JobStatus.fromCode(request.getStatus());
+            validateStatus(request.getStatus());
+        }
+        if (request.getPriority() != null) {
+            validatePriority(request.getPriority());
         }
 
         Job update = new Job();
@@ -96,6 +103,20 @@ public class JobService {
         }
 
         jobMapper.deleteById(id);
+    }
+
+    private void validateStatus(Integer status) {
+        try {
+            JobStatus.fromCode(status);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private void validatePriority(Integer priority) {
+        if (priority < 0) {
+            throw new BadRequestException("priority must be greater than or equal to 0");
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 package com.mingzhe.resumetailor.job;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,8 +11,10 @@ import java.time.LocalDateTime;
 @Data
 public class UpdateJobDTO {
 
+    @Pattern(regexp = ".*\\S.*", message = "title must not be blank")
     private String title;
 
+    @Pattern(regexp = ".*\\S.*", message = "company must not be blank")
     private String company;
 
     private String location;

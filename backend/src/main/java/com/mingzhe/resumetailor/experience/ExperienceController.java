@@ -33,7 +33,7 @@ public class ExperienceController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Experience> updateExperience(@PathVariable Long id,
-                                                       @RequestBody UpdateExperienceDTO request) {
+                                                       @RequestBody @Valid UpdateExperienceDTO request) {
         return ResponseEntity.ok(experienceService.updateExperience(id, request));
     }
 

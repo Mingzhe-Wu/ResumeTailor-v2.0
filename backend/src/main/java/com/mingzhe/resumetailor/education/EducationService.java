@@ -80,7 +80,7 @@ public class EducationService {
             throw new BadRequestException("endDate cannot be before startDate");
         }
 
-        if (!isValidGpa(request.getGpa())) {
+        if (request.getGpa() != null && !isValidGpa(request.getGpa())) {
             throw new BadRequestException("gpa must be between 0.00 and 4.00");
         }
 
@@ -109,6 +109,6 @@ public class EducationService {
     }
 
     private boolean isValidGpa(BigDecimal gpa) {
-        return gpa.compareTo(BigDecimal.ZERO) >= 0 && gpa.compareTo(new BigDecimal("4.00")) <= 0;
+        return gpa.compareTo(BigDecimal.ZERO) >= 0 && gpa.compareTo(new BigDecimal("4.000")) <= 0;
     }
 }

@@ -33,7 +33,7 @@ public class ProjectController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Project> updateProject(@PathVariable Long id,
-                                                 @RequestBody UpdateProjectDTO request) {
+                                                 @RequestBody @Valid UpdateProjectDTO request) {
         return ResponseEntity.ok(projectService.updateProject(id, request));
     }
 

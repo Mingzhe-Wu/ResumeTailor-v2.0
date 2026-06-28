@@ -1,5 +1,6 @@
 package com.mingzhe.resumetailor.education;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 @Data
 public class UpdateEducationDTO {
 
+    @Pattern(regexp = ".*\\S.*", message = "schoolName must not be blank")
     private String schoolName;
 
     private String degree;

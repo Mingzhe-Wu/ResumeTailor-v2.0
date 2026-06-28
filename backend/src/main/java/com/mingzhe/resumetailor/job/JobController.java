@@ -33,7 +33,7 @@ public class JobController {
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Job> updateJob(@PathVariable Long id,
-                                         @RequestBody UpdateJobDTO request) {
+                                         @RequestBody @Valid UpdateJobDTO request) {
         return ResponseEntity.ok(jobService.updateJob(id, request));
     }
 
