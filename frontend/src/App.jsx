@@ -1,7 +1,12 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 import api from "./api";
+import ResumePreviewPanel from "./components/resume/ResumePreviewPanel.jsx";
+import { exportResumeElementToPdf } from "./components/resume/resumePdfExport.js";
+import {
+  buildResumePdfFilename,
+  deepClone,
+  getResumeSectionKey,
+} from "./components/resume/resumeUtils.js";
 import "./App.css";
 
 const TOAST_DISPLAY_MS = 3000;
@@ -150,7 +155,6 @@ function App() {
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumePanelError, setResumePanelError] = useState("");
   const [resumePanelMessage, setResumePanelMessage] = useState("");
-  const [resumeOutOfBoundary, setResumeOutOfBoundary] = useState(false);
   const didMountJobFilters = useRef(false);
   const resumePreviewRef = useRef(null);
 
@@ -269,7 +273,6 @@ function App() {
     if (!selectedJob) {
       setGeneratedResume(null);
       setResumeContent(null);
-      setResumeOutOfBoundary(false);
       setResumeLoading(false);
       setResumePanelError("");
       setResumePanelMessage("");
@@ -278,23 +281,6 @@ function App() {
 
     fetchResumeForJob(selectedJob.id);
   }, [selectedJob?.id]);
-
-  useEffect(() => {
-    const checkResumeBoundary = () => {
-      const resumeElement = resumePreviewRef.current;
-      setResumeOutOfBoundary(
-        Boolean(resumeElement && resumeElement.scrollHeight > resumeElement.clientHeight + 1)
-      );
-    };
-
-    const frameId = requestAnimationFrame(checkResumeBoundary);
-    window.addEventListener("resize", checkResumeBoundary);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", checkResumeBoundary);
-    };
-  }, [resumeContent, generatedResume?.id, selectedJob?.id]);
 
   async function fetchResumeForJob(jobId, keepMessage = false) {
     try {
@@ -1226,7 +1212,7 @@ function App() {
                 <div className="job-detail-heading">
                   <div>
                     <h2>Edit Job Detail</h2>
-                    <p>{selectedJob.company || "Company"} 路 {statusMap[selectedJob.status] || "Unknown"}</p>
+                    <p>{selectedJob.company || "Company"} | {statusMap[selectedJob.status] || "Unknown"}</p>
                   </div>
                   <button
                     type="button"
@@ -1370,85 +1356,20 @@ function App() {
             )}
           </div>
 
-          <div className="resume-preview-panel">
-            <div className="resume-preview-card">
-              <div className="resume-preview-header">
-                <div className="resume-preview-title">
-                  <h2>Resume Preview</h2>
-                  <p>
-                    {selectedJob
-                      ? `${selectedJob.title || "Selected job"} at ${selectedJob.company || "Company"}`
-                      : "No job selected"}
-                  </p>
-                </div>
-                {generatedResume && resumeContent && (
-                  <div className="resume-header-actions">
-                    <button
-                      type="button"
-                      className="primary-button resume-save-button"
-                      onClick={saveResumeContent}
-                    >
-                      Save Resume
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button resume-export-button"
-                      onClick={exportResumePdf}
-                    >
-                      Export PDF
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {!selectedJob ? (
-                <div className="resume-empty-state">
-                  <h3>Select a job</h3>
-                  <p>Select a job to view or generate a resume.</p>
-                </div>
-              ) : resumeLoading ? (
-                <div className="resume-empty-state">
-                  <h3>Generating resume...</h3>
-                  <p>This panel will update when the resume is ready.</p>
-                </div>
-              ) : resumePanelError ? (
-                <div className="resume-empty-state resume-error-state">
-                  <h3>Resume unavailable</h3>
-                  <p>{resumePanelError}</p>
-                </div>
-              ) : generatedResume ? (
-                <div className="resume-preview-body">
-                  {resumePanelMessage && (
-                    <p className="resume-panel-message">{resumePanelMessage}</p>
-                  )}
-
-                  {resumeOutOfBoundary && (
-                    <p className="resume-boundary-warning">
-                      Out of boundary, only the part inside paper will be shown on the resume!
-                    </p>
-                  )}
-
-                  <ResumeBuilderToolbar
-                    resume={resumeContent}
-                    onSummaryToggle={updateSummaryVisibility}
-                    onSectionToggle={updateResumeSectionVisibility}
-                  />
-
-                  <EditableResumePreview
-                    resume={resumeContent}
-                    onChange={setResumeContent}
-                    resumeRef={resumePreviewRef}
-                    outOfBoundary={resumeOutOfBoundary}
-                  />
-                </div>
-              ) : (
-                <div className="resume-empty-state">
-                  <h3>No resume generated yet.</h3>
-                  <p>Click Generate Resume to create one.</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <ResumePreviewPanel
+            selectedJob={selectedJob}
+            generatedResume={generatedResume}
+            resumeContent={resumeContent}
+            resumeLoading={resumeLoading}
+            resumePanelError={resumePanelError}
+            resumePanelMessage={resumePanelMessage}
+            onSaveResume={saveResumeContent}
+            onExportPdf={exportResumePdf}
+            onSummaryToggle={updateSummaryVisibility}
+            onSectionToggle={updateResumeSectionVisibility}
+            onResumeChange={setResumeContent}
+            resumePreviewRef={resumePreviewRef}
+          />
         </div>
 
         {showJobModal && (
@@ -1464,7 +1385,7 @@ function App() {
                 className="close-button"
                 onClick={() => setShowJobModal(false)}
               >
-                脳
+                &times;
               </button>
 
               <div className="job-detail-heading">
@@ -1605,7 +1526,7 @@ function App() {
                 className="close-button"
                 onClick={() => setShowProfileModal(false)}
               >
-                脳
+                &times;
               </button>
 
               <div className="profile-modal-layout">
@@ -1695,7 +1616,7 @@ function App() {
                 className="close-button"
                 onClick={() => setShowSectionAddModal(false)}
               >
-                脳
+                &times;
               </button>
 
               <h2>Add {capitalize(sectionAddType)}</h2>
@@ -2211,786 +2132,6 @@ function SectionList({
   );
 }
 
-function ResumeBuilderToolbar({ resume, onSummaryToggle, onSectionToggle }) {
-  if (!resume || typeof resume !== "object") return null;
-
-  const sections = Array.isArray(resume.sections)
-    ? [...resume.sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    : [];
-
-  return (
-    <div className="resume-builder-toolbar">
-      <label>
-        <input
-          type="checkbox"
-          checked={resume.summary?.visible !== false}
-          onChange={(e) => onSummaryToggle(e.target.checked)}
-        />
-        Summary
-      </label>
-
-      {sections.map((section) => {
-        const type = String(section.type || "").toLowerCase();
-        const sectionKey = getResumeSectionKey(section);
-
-        return (
-          <label key={sectionKey}>
-            <input
-              type="checkbox"
-              checked={section.visible !== false}
-              onChange={(e) => onSectionToggle(sectionKey, e.target.checked)}
-            />
-            {section.title || getResumeSectionTitle(type)}
-          </label>
-        );
-      })}
-    </div>
-  );
-}
-
-function EditableResumePreview({ resume, onChange, resumeRef, outOfBoundary = false }) {
-  if (!resume || typeof resume !== "object") {
-    return (
-      <div className="resume-empty-state">
-        <h3>Resume preview unavailable</h3>
-        <p>The generated resume content is not in the expected structured format.</p>
-      </div>
-    );
-  }
-
-  const contact = resume.contact || {};
-  const sections = Array.isArray(resume.sections)
-    ? [...resume.sections]
-        .filter((section) => section.visible !== false)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    : [];
-
-  const contactFields = [
-    ["location", contact.location],
-    ["email", contact.email],
-    ["phone", contact.phone],
-    ["linkedin", contact.linkedin],
-    ["github", contact.github],
-  ];
-  let visibleContactCount = 0;
-
-  const updateContact = (field, value) => {
-    onChange({
-      ...resume,
-      contact: {
-        ...(resume.contact || {}),
-        [field]: value,
-      },
-    });
-  };
-
-  const updateSummary = (value) => {
-    onChange({
-      ...resume,
-      summary: {
-        ...(resume.summary || {}),
-        content: value,
-      },
-    });
-  };
-
-  const updateSection = (nextSection) => {
-    onChange({
-      ...resume,
-      sections: (resume.sections || []).map((section) =>
-        getResumeSectionKey(section) === getResumeSectionKey(nextSection)
-          ? nextSection
-          : section
-      ),
-    });
-  };
-
-  return (
-    <article
-      className={outOfBoundary ? "ats-resume ats-resume-out-of-boundary" : "ats-resume"}
-      ref={resumeRef}
-    >
-      <header className="ats-contact">
-        <h1>
-          <EditableText
-            value={contact.name || ""}
-            placeholder="Candidate Name"
-            onSave={(value) => updateContact("name", value)}
-          />
-        </h1>
-
-        <p className="ats-contact-line">
-          {contactFields.map(([field, value]) => {
-            const hasValue = String(value || "").trim() !== "";
-            const shouldShowSeparator = hasValue && visibleContactCount > 0;
-            if (hasValue) visibleContactCount += 1;
-
-            return (
-              <span
-                className={
-                  hasValue
-                    ? "ats-contact-part"
-                    : "ats-contact-part empty-contact-part"
-                }
-                key={field}
-              >
-                {shouldShowSeparator && (
-                  <span className="ats-contact-separator">&bull;</span>
-                )}
-                <EditableText
-                  value={value || ""}
-                  placeholder={field}
-                  onSave={(nextValue) => updateContact(field, nextValue)}
-                />
-              </span>
-            );
-          })}
-        </p>
-      </header>
-
-      {resume.summary?.visible !== false && (
-        <section className="ats-section">
-          <h2>Summary</h2>
-          <EditableText
-            as="p"
-            className="ats-summary"
-            value={resume.summary?.content || ""}
-            placeholder="Summary"
-            onSave={updateSummary}
-          />
-        </section>
-      )}
-
-      {sections.map((section) => (
-        <EditableResumeSection
-          key={getResumeSectionKey(section)}
-          section={section}
-          onChange={updateSection}
-        />
-      ))}
-    </article>
-  );
-}
-
-function EditableResumeSection({ section, onChange }) {
-  const items = Array.isArray(section.items)
-    ? section.items.filter((item) => item.visible !== false)
-    : [];
-  const type = String(section.type || "").toLowerCase();
-
-  if (items.length === 0) return null;
-
-  const updateItem = (item, nextItem) => {
-    onChange({
-      ...section,
-      items: (section.items || []).map((sectionItem) =>
-        sectionItem === item || (item.id != null && sectionItem.id === item.id)
-          ? nextItem
-          : sectionItem
-      ),
-    });
-  };
-
-  return (
-    <section className="ats-section">
-      <h2>{section.title || getResumeSectionTitle(type)}</h2>
-
-      {type.includes("experience") && items.map((item, index) => (
-        <EditableExperienceItem
-          key={item.id || index}
-          item={item}
-          onChange={(nextItem) => updateItem(item, nextItem)}
-        />
-      ))}
-
-      {type.includes("project") && items.map((item, index) => (
-        <EditableProjectItem
-          key={item.id || index}
-          item={item}
-          onChange={(nextItem) => updateItem(item, nextItem)}
-        />
-      ))}
-
-      {type.includes("education") && items.map((item, index) => (
-        <EditableEducationItem
-          key={item.id || index}
-          item={item}
-          onChange={(nextItem) => updateItem(item, nextItem)}
-        />
-      ))}
-
-      {type.includes("skill") && items.map((item, index) => (
-        <EditableSkillItem
-          key={item.id || index}
-          item={item}
-          onChange={(nextItem) => updateItem(item, nextItem)}
-        />
-      ))}
-    </section>
-  );
-}
-
-function EditableExperienceItem({ item, onChange }) {
-  const title = item.title || item.position || item.role;
-  const company = item.company || item.companyName;
-
-  return (
-    <div className="ats-item">
-      <div className="ats-item-heading">
-        <strong className="ats-item-title">
-          <EditableText
-            value={company || ""}
-            placeholder="Company"
-            onSave={(value) => onChange(updateFirstExistingField(item, ["company", "companyName"], value))}
-          />
-          <span className="ats-inline-separator"> | </span>
-          <EditableText
-            value={title || ""}
-            placeholder="Title"
-            onSave={(value) => onChange(updateFirstExistingField(item, ["title", "position", "role"], value))}
-          />
-        </strong>
-        <span className="ats-item-date">
-          <EditableText
-            value={formatDateRange(item.startDate, item.endDate)}
-            placeholder="Date range"
-            onSave={(value) => onChange(updateDateRangeFields(item, value))}
-          />
-        </span>
-      </div>
-      <EditableText
-        as="p"
-        className="ats-meta"
-        value={item.location || ""}
-        placeholder="Location"
-        onSave={(value) => onChange({ ...item, location: value })}
-      />
-      <EditableBulletList
-        bullets={item.bullets || item.details || item.description}
-        onSave={(bullets) => onChange(updateBulletField(item, bullets))}
-      />
-    </div>
-  );
-}
-
-function EditableProjectItem({ item, onChange }) {
-  const name = item.name || item.projectName;
-  const techStack = formatDelimitedList(item.techStack, " \u2022 ");
-
-  return (
-    <div className="ats-item">
-      <div className="ats-item-heading">
-        <strong className="ats-item-title">
-          <EditableText
-            value={name || ""}
-            placeholder="Project name"
-            onSave={(value) => onChange(updateFirstExistingField(item, ["name", "projectName"], value))}
-          />
-        </strong>
-        <span className="ats-item-date">
-          <EditableText
-            value={formatDateRange(item.startDate, item.endDate)}
-            placeholder="Date range"
-            onSave={(value) => onChange(updateDateRangeFields(item, value))}
-          />
-        </span>
-      </div>
-      <EditableText
-        as="p"
-        className="ats-meta"
-        value={techStack}
-        placeholder="Tech stack"
-        onSave={(value) => onChange({
-          ...item,
-          techStack: parseDelimitedListLike(item.techStack, value, "\u2022"),
-        })}
-      />
-      <EditableBulletList
-        bullets={item.bullets || item.details || item.description}
-        onSave={(bullets) => onChange(updateBulletField(item, bullets))}
-      />
-    </div>
-  );
-}
-
-function EditableEducationItem({ item, onChange }) {
-  const school = item.school || item.schoolName;
-  const degreeLine = [item.degree, item.major].filter(Boolean).join(", ");
-  const dateLine = [item.location, formatDateRange(item.startDate, item.endDate)]
-    .filter(Boolean)
-    .join(" | ");
-  const detailLine = [degreeLine, item.gpa ? `GPA: ${item.gpa}` : ""]
-    .filter(Boolean)
-    .join(" | ");
-
-  return (
-    <div className="ats-item">
-      <div className="ats-item-heading">
-        <strong className="ats-item-title">
-          <EditableText
-            value={school || ""}
-            placeholder="School"
-            onSave={(value) => onChange(updateFirstExistingField(item, ["school", "schoolName"], value))}
-          />
-        </strong>
-        <span className="ats-item-date">
-          <EditableText
-            value={dateLine}
-            placeholder="Location | Date range"
-            onSave={(value) => onChange(updateEducationMetaFields(item, value))}
-          />
-        </span>
-      </div>
-      <EditableText
-        as="p"
-        className="ats-meta"
-        value={detailLine}
-        placeholder="Degree, Major | GPA"
-        onSave={(value) => onChange(updateEducationDetailFields(item, value))}
-      />
-      <EditableBulletList
-        bullets={item.details || item.relevantCoursework || item.description}
-        onSave={(bullets) => onChange(updateBulletField(item, bullets))}
-      />
-    </div>
-  );
-}
-
-function EditableSkillItem({ item, onChange }) {
-  const skills = item.skills || item.names || item.items || item.name;
-  const skillText = formatDelimitedList(skills, ", ");
-
-  return (
-    <p className="ats-skill-line">
-      <strong>
-        <EditableText
-          value={item.category || ""}
-          placeholder="Category"
-          onSave={(value) => onChange({ ...item, category: value })}
-        />
-        {": "}
-      </strong>
-      <EditableText
-        value={skillText}
-        placeholder="skill1, skill2, skill3"
-        onSave={(value) => onChange({
-          ...item,
-          [getSkillFieldName(item)]: parseDelimitedListLike(skills, value, ","),
-        })}
-      />
-    </p>
-  );
-}
-
-function EditableBulletList({ bullets, onSave }) {
-  const normalizedBullets = normalizeBullets(bullets);
-
-  if (normalizedBullets.length === 0) return null;
-
-  return (
-    <ul className="ats-bullets">
-      {normalizedBullets.map((bullet, index) => (
-        <li key={index}>
-          <EditableText
-            value={bullet}
-            onSave={(value) => {
-              const nextBullets = [...normalizedBullets];
-              nextBullets[index] = value;
-              onSave(nextBullets);
-            }}
-          />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function EditableText({ value, onSave, placeholder = "", as: Tag = "span", className = "", multiline = false }) {
-  const displayValue = value || "";
-
-  if (multiline) {
-    return (
-      <textarea
-        className={`ats-editable ats-editable-textarea ${className}`}
-        value={displayValue}
-        placeholder={placeholder}
-        onChange={(e) => onSave(e.target.value)}
-      />
-    );
-  }
-
-  return (
-    <Tag
-      className={`ats-editable ${className}`}
-      contentEditable
-      suppressContentEditableWarning
-      data-placeholder={placeholder}
-      onBlur={(e) => onSave(e.currentTarget.textContent.trim())}
-    >
-      {displayValue}
-    </Tag>
-  );
-}
-
-function ResumePreview({ resume }) {
-  if (!resume || typeof resume !== "object") {
-    return (
-      <div className="resume-empty-state">
-        <h3>Resume preview unavailable</h3>
-        <p>The generated resume content is not in the expected structured format.</p>
-      </div>
-    );
-  }
-
-  const contact = resume.contact || {};
-  const sections = Array.isArray(resume.sections)
-    ? [...resume.sections]
-        .filter((section) => section.visible !== false)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    : [];
-
-  const contactParts = [
-    contact.location,
-    contact.email,
-    contact.phone,
-    contact.linkedin,
-    contact.github,
-  ].filter(Boolean);
-
-  return (
-    <article className="ats-resume">
-      <header className="ats-contact">
-        <h1>{contact.name || "Candidate Name"}</h1>
-        {contactParts.length > 0 && (
-          <p>{contactParts.join(" 鈥?")}</p>
-        )}
-      </header>
-
-      {resume.summary?.visible !== false && resume.summary?.content && (
-        <section className="ats-section">
-          <h2>Summary</h2>
-          <p className="ats-summary">{resume.summary.content}</p>
-        </section>
-      )}
-
-      {sections.map((section) => (
-        <ResumeSection key={section.id || `${section.type}-${section.order}`} section={section} />
-      ))}
-    </article>
-  );
-}
-
-function ResumeSection({ section }) {
-  const items = Array.isArray(section.items)
-    ? section.items.filter((item) => item.visible !== false)
-    : [];
-  const type = String(section.type || "").toLowerCase();
-
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="ats-section">
-      <h2>{section.title || getResumeSectionTitle(type)}</h2>
-
-      {type.includes("experience") && items.map((item, index) => (
-        <ExperienceResumeItem key={item.id || index} item={item} />
-      ))}
-
-      {type.includes("project") && items.map((item, index) => (
-        <ProjectResumeItem key={item.id || index} item={item} />
-      ))}
-
-      {type.includes("education") && items.map((item, index) => (
-        <EducationResumeItem key={item.id || index} item={item} />
-      ))}
-
-      {type.includes("skill") && <SkillResumeItems items={items} />}
-    </section>
-  );
-}
-
-function ExperienceResumeItem({ item }) {
-  const title = item.title || item.position || item.role;
-  const company = item.company || item.companyName;
-  const heading = [company, title].filter(Boolean).join(" | ");
-  const dateRange = formatDateRange(item.startDate, item.endDate);
-
-  return (
-    <div className="ats-item">
-      <div className="ats-item-heading">
-        <strong className="ats-item-title">{heading}</strong>
-        {dateRange && <span className="ats-item-date">{dateRange}</span>}
-      </div>
-      {item.location && <p className="ats-meta">{item.location}</p>}
-      <BulletList bullets={item.bullets || item.details || item.description} />
-    </div>
-  );
-}
-
-function ProjectResumeItem({ item }) {
-  const name = item.name || item.projectName;
-  const dateRange = formatDateRange(item.startDate, item.endDate);
-  const techStack = formatDelimitedList(item.techStack);
-
-  return (
-    <div className="ats-item">
-      <div className="ats-item-heading">
-        <strong className="ats-item-title">{name}</strong>
-        {dateRange && <span className="ats-item-date">{dateRange}</span>}
-      </div>
-      {techStack && <p className="ats-meta">{techStack}</p>}
-      <BulletList bullets={item.bullets || item.details || item.description} />
-    </div>
-  );
-}
-
-function EducationResumeItem({ item }) {
-  const school = item.school || item.schoolName;
-  const degreeLine = [item.degree, item.major].filter(Boolean).join(", ");
-  const details = item.details || item.relevantCoursework || item.description;
-  const dateRange = formatDateRange(item.startDate, item.endDate);
-
-  return (
-    <div className="ats-item">
-      <div className="ats-item-heading">
-        <strong className="ats-item-title">{school}</strong>
-        {[item.location, dateRange].filter(Boolean).length > 0 && (
-          <span className="ats-item-date">{[item.location, dateRange].filter(Boolean).join(" | ")}</span>
-        )}
-      </div>
-      {(degreeLine || item.location || item.gpa) && (
-        <p className="ats-meta">
-          {[degreeLine, item.gpa ? `GPA: ${item.gpa}` : ""]
-            .filter(Boolean)
-            .join(" | ")}
-        </p>
-      )}
-      <BulletList bullets={details} />
-    </div>
-  );
-}
-
-function SkillResumeItems({ items }) {
-  return (
-    <div className="ats-skills">
-      {items.map((item, index) => {
-        const skills = item.skills || item.names || item.items || item.name;
-        const skillText = formatDelimitedList(skills, ", ");
-
-        if (!skillText) return null;
-
-        return (
-          <p key={item.id || index}>
-            {item.category && <strong>{item.category}: </strong>}
-            {skillText}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
-function BulletList({ bullets }) {
-  const normalizedBullets = normalizeBullets(bullets);
-
-  if (normalizedBullets.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul className="ats-bullets">
-      {normalizedBullets.map((bullet, index) => (
-        <li key={index}>{bullet}</li>
-      ))}
-    </ul>
-  );
-}
-
-function normalizeBullets(value) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => (typeof item === "string" ? item : item?.content || item?.text || ""))
-      .filter(Boolean);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(/\r?\n/)
-      .map((line) => line.replace(/^[-*]\s*/, "").trim())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function formatDateRange(startDate, endDate) {
-  if (!startDate && !endDate) return "";
-  return [startDate, endDate || "Present"].filter(Boolean).join(" - ");
-}
-
-function formatDelimitedList(value, separator = " \u2022 ") {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => {
-        if (typeof item === "string") return item;
-        return item?.name || item?.label || item?.content || "";
-      })
-      .filter(Boolean)
-      .join(separator);
-  }
-
-  return value || "";
-}
-
-async function exportResumeElementToPdf(element, filename) {
-  await document.fonts?.ready;
-  element.classList.add("pdf-exporting");
-  element.classList.add("exporting-pdf");
-
-  try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      scrollX: -window.scrollX,
-      scrollY: -window.scrollY,
-      logging: false,
-    });
-
-    const imageData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: [canvas.width, canvas.height],
-    });
-
-    pdf.addImage(
-      imageData,
-      "PNG",
-      0,
-      0,
-      pdf.internal.pageSize.getWidth(),
-      pdf.internal.pageSize.getHeight()
-    );
-    pdf.save(filename);
-  } finally {
-    element.classList.remove("pdf-exporting");
-    element.classList.remove("exporting-pdf");
-  }
-}
-
-function buildResumePdfFilename(jobTitle) {
-  const safeTitle = jobTitle
-    ?.trim()
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
-    .replace(/\s+/g, "_");
-
-  return safeTitle ? `Resume_${safeTitle}.pdf` : "Resume.pdf";
-}
-
-function getResumeSectionTitle(type) {
-  if (type.includes("experience")) return "Experience";
-  if (type.includes("project")) return "Projects";
-  if (type.includes("education")) return "Education";
-  if (type.includes("skill")) return "Skills";
-  return "Section";
-}
-
-function deepClone(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => deepClone(item));
-  }
-
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, deepClone(item)])
-    );
-  }
-
-  return value;
-}
-
-function getResumeSectionKey(section) {
-  return section.id || `${section.type || "section"}-${section.order ?? ""}-${section.title || ""}`;
-}
-
-function updateFirstExistingField(item, fields, value) {
-  const existingField = fields.find((field) =>
-    Object.prototype.hasOwnProperty.call(item, field)
-  );
-
-  return {
-    ...item,
-    [existingField || fields[0]]: value,
-  };
-}
-
-function updateDateRangeFields(item, value) {
-  const [startDate = "", endDate = ""] = value.split(/\s+-\s+/, 2);
-
-  return {
-    ...item,
-    startDate: startDate.trim(),
-    endDate: endDate.trim() === "Present" ? "" : endDate.trim(),
-  };
-}
-
-function updateEducationMetaFields(item, value) {
-  const [location = "", dateRange = ""] = value.split("|").map((part) => part.trim());
-
-  return {
-    ...updateDateRangeFields(item, dateRange),
-    location,
-  };
-}
-
-function updateEducationDetailFields(item, value) {
-  const parts = value.split("|").map((part) => part.trim()).filter(Boolean);
-  const [degreeMajor = "", gpaPart = ""] = parts;
-  const [degree = "", major = ""] = degreeMajor.split(",").map((part) => part.trim());
-  const gpa = gpaPart.replace(/^GPA:\s*/i, "").trim();
-
-  return {
-    ...item,
-    degree,
-    major,
-    gpa,
-  };
-}
-
-function updateBulletField(item, bullets) {
-  const field = ["bullets", "details", "description", "relevantCoursework"].find((name) =>
-    Object.prototype.hasOwnProperty.call(item, name)
-  ) || "bullets";
-  const existingValue = item[field];
-
-  return {
-    ...item,
-    [field]: Array.isArray(existingValue) ? bullets : bullets.join("\n"),
-  };
-}
-
-function parseDelimitedListLike(originalValue, value, preferredSeparator) {
-  if (!Array.isArray(originalValue)) {
-    return value;
-  }
-
-  const splitter = preferredSeparator === "," ? /,/ : /[\u2022,]/;
-
-  return value
-    .split(splitter)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function getSkillFieldName(item) {
-  return ["skills", "names", "items", "name"].find((field) =>
-    Object.prototype.hasOwnProperty.call(item, field)
-  ) || "skills";
-}
-
 function getSectionTitle(type, item) {
   if (type === "education") return item.schoolName;
   if (type === "experience") return item.position;
@@ -3001,7 +2142,7 @@ function getSectionTitle(type, item) {
 
 function getSectionSubtitle(type, item) {
   if (type === "education") {
-    return [item.degree, item.major].filter(Boolean).join(" 路 ") || "Education";
+    return [item.degree, item.major].filter(Boolean).join(" | ") || "Education";
   }
 
   if (type === "experience") {

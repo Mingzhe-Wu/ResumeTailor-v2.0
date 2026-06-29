@@ -1,0 +1,145 @@
+export function normalizeBullets(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : item?.content || item?.text || ""))
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*]\s*/, "").trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+export function formatDateRange(startDate, endDate) {
+  if (!startDate && !endDate) return "";
+  return [startDate, endDate || "Present"].filter(Boolean).join(" - ");
+}
+
+export function formatDelimitedList(value, separator = " \u2022 ") {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        return item?.name || item?.label || item?.content || "";
+      })
+      .filter(Boolean)
+      .join(separator);
+  }
+
+  return value || "";
+}
+
+export function buildResumePdfFilename(jobTitle) {
+  const safeTitle = jobTitle
+    ?.trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .replace(/\s+/g, "_");
+
+  return safeTitle ? `Resume_${safeTitle}.pdf` : "Resume.pdf";
+}
+
+export function getResumeSectionTitle(type) {
+  if (type.includes("experience")) return "Experience";
+  if (type.includes("project")) return "Projects";
+  if (type.includes("education")) return "Education";
+  if (type.includes("skill")) return "Skills";
+  return "Section";
+}
+
+export function getResumeSectionKey(section) {
+  return section.id || `${section.type || "section"}-${section.order ?? ""}-${section.title || ""}`;
+}
+
+export function updateFirstExistingField(item, fields, value) {
+  const existingField = fields.find((field) =>
+    Object.prototype.hasOwnProperty.call(item, field)
+  );
+
+  return {
+    ...item,
+    [existingField || fields[0]]: value,
+  };
+}
+
+export function updateDateRangeFields(item, value) {
+  const [startDate = "", endDate = ""] = value.split(/\s+-\s+/, 2);
+
+  return {
+    ...item,
+    startDate: startDate.trim(),
+    endDate: endDate.trim() === "Present" ? "" : endDate.trim(),
+  };
+}
+
+export function updateEducationMetaFields(item, value) {
+  const [location = "", dateRange = ""] = value.split("|").map((part) => part.trim());
+
+  return {
+    ...updateDateRangeFields(item, dateRange),
+    location,
+  };
+}
+
+export function updateEducationDetailFields(item, value) {
+  const parts = value.split("|").map((part) => part.trim()).filter(Boolean);
+  const [degreeMajor = "", gpaPart = ""] = parts;
+  const [degree = "", major = ""] = degreeMajor.split(",").map((part) => part.trim());
+  const gpa = gpaPart.replace(/^GPA:\s*/i, "").trim();
+
+  return {
+    ...item,
+    degree,
+    major,
+    gpa,
+  };
+}
+
+export function updateBulletField(item, bullets) {
+  const field = ["bullets", "details", "description", "relevantCoursework"].find((name) =>
+    Object.prototype.hasOwnProperty.call(item, name)
+  ) || "bullets";
+  const existingValue = item[field];
+
+  return {
+    ...item,
+    [field]: Array.isArray(existingValue) ? bullets : bullets.join("\n"),
+  };
+}
+
+export function parseDelimitedListLike(originalValue, value, preferredSeparator) {
+  if (!Array.isArray(originalValue)) {
+    return value;
+  }
+
+  const splitter = preferredSeparator === "," ? /,/ : /[\u2022,]/;
+
+  return value
+    .split(splitter)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function getSkillFieldName(item) {
+  return ["skills", "names", "items", "name"].find((field) =>
+    Object.prototype.hasOwnProperty.call(item, field)
+  ) || "skills";
+}
+
+export function deepClone(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => deepClone(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, deepClone(item)])
+    );
+  }
+
+  return value;
+}
