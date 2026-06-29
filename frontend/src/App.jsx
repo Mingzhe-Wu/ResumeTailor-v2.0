@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import api from "./api";
@@ -1226,7 +1226,7 @@ function App() {
                 <div className="job-detail-heading">
                   <div>
                     <h2>Edit Job Detail</h2>
-                    <p>{selectedJob.company || "Company"} · {statusMap[selectedJob.status] || "Unknown"}</p>
+                    <p>{selectedJob.company || "Company"} 路 {statusMap[selectedJob.status] || "Unknown"}</p>
                   </div>
                   <button
                     type="button"
@@ -1464,7 +1464,7 @@ function App() {
                 className="close-button"
                 onClick={() => setShowJobModal(false)}
               >
-                ×
+                脳
               </button>
 
               <div className="job-detail-heading">
@@ -1605,7 +1605,7 @@ function App() {
                 className="close-button"
                 onClick={() => setShowProfileModal(false)}
               >
-                ×
+                脳
               </button>
 
               <div className="profile-modal-layout">
@@ -1695,7 +1695,7 @@ function App() {
                 className="close-button"
                 onClick={() => setShowSectionAddModal(false)}
               >
-                ×
+                脳
               </button>
 
               <h2>Add {capitalize(sectionAddType)}</h2>
@@ -2272,6 +2272,7 @@ function EditableResumePreview({ resume, onChange, resumeRef, outOfBoundary = fa
     ["linkedin", contact.linkedin],
     ["github", contact.github],
   ];
+  let visibleContactCount = 0;
 
   const updateContact = (field, value) => {
     onChange({
@@ -2319,16 +2320,31 @@ function EditableResumePreview({ resume, onChange, resumeRef, outOfBoundary = fa
         </h1>
 
         <p className="ats-contact-line">
-          {contactFields.map(([field, value], index) => (
-            <span className="ats-contact-part" key={field}>
-              {index > 0 && <span className="ats-contact-separator">•</span>}
-              <EditableText
-                value={value || ""}
-                placeholder={field}
-                onSave={(nextValue) => updateContact(field, nextValue)}
-              />
-            </span>
-          ))}
+          {contactFields.map(([field, value]) => {
+            const hasValue = String(value || "").trim() !== "";
+            const shouldShowSeparator = hasValue && visibleContactCount > 0;
+            if (hasValue) visibleContactCount += 1;
+
+            return (
+              <span
+                className={
+                  hasValue
+                    ? "ats-contact-part"
+                    : "ats-contact-part empty-contact-part"
+                }
+                key={field}
+              >
+                {shouldShowSeparator && (
+                  <span className="ats-contact-separator">&bull;</span>
+                )}
+                <EditableText
+                  value={value || ""}
+                  placeholder={field}
+                  onSave={(nextValue) => updateContact(field, nextValue)}
+                />
+              </span>
+            );
+          })}
         </p>
       </header>
 
@@ -2459,7 +2475,7 @@ function EditableExperienceItem({ item, onChange }) {
 
 function EditableProjectItem({ item, onChange }) {
   const name = item.name || item.projectName;
-  const techStack = formatDelimitedList(item.techStack, " • ");
+  const techStack = formatDelimitedList(item.techStack, " \u2022 ");
 
   return (
     <div className="ats-item">
@@ -2486,7 +2502,7 @@ function EditableProjectItem({ item, onChange }) {
         placeholder="Tech stack"
         onSave={(value) => onChange({
           ...item,
-          techStack: parseDelimitedListLike(item.techStack, value, "•"),
+          techStack: parseDelimitedListLike(item.techStack, value, "\u2022"),
         })}
       />
       <EditableBulletList
@@ -2646,7 +2662,7 @@ function ResumePreview({ resume }) {
       <header className="ats-contact">
         <h1>{contact.name || "Candidate Name"}</h1>
         {contactParts.length > 0 && (
-          <p>{contactParts.join(" • ")}</p>
+          <p>{contactParts.join(" 鈥?")}</p>
         )}
       </header>
 
@@ -2814,7 +2830,7 @@ function formatDateRange(startDate, endDate) {
   return [startDate, endDate || "Present"].filter(Boolean).join(" - ");
 }
 
-function formatDelimitedList(value, separator = " • ") {
+function formatDelimitedList(value, separator = " \u2022 ") {
   if (Array.isArray(value)) {
     return value
       .map((item) => {
@@ -2830,32 +2846,39 @@ function formatDelimitedList(value, separator = " • ") {
 
 async function exportResumeElementToPdf(element, filename) {
   await document.fonts?.ready;
+  element.classList.add("pdf-exporting");
+  element.classList.add("exporting-pdf");
 
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    scrollX: -window.scrollX,
-    scrollY: -window.scrollY,
-    logging: false,
-  });
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      scrollX: -window.scrollX,
+      scrollY: -window.scrollY,
+      logging: false,
+    });
 
-  const imageData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({
-    orientation: "portrait",
-    unit: "px",
-    format: [canvas.width, canvas.height],
-  });
+    const imageData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "px",
+      format: [canvas.width, canvas.height],
+    });
 
-  pdf.addImage(
-    imageData,
-    "PNG",
-    0,
-    0,
-    pdf.internal.pageSize.getWidth(),
-    pdf.internal.pageSize.getHeight()
-  );
-  pdf.save(filename);
+    pdf.addImage(
+      imageData,
+      "PNG",
+      0,
+      0,
+      pdf.internal.pageSize.getWidth(),
+      pdf.internal.pageSize.getHeight()
+    );
+    pdf.save(filename);
+  } finally {
+    element.classList.remove("pdf-exporting");
+    element.classList.remove("exporting-pdf");
+  }
 }
 
 function buildResumePdfFilename(jobTitle) {
@@ -2954,7 +2977,7 @@ function parseDelimitedListLike(originalValue, value, preferredSeparator) {
     return value;
   }
 
-  const splitter = preferredSeparator === "," ? /,/ : /•|,/;
+  const splitter = preferredSeparator === "," ? /,/ : /[\u2022,]/;
 
   return value
     .split(splitter)
@@ -2978,7 +3001,7 @@ function getSectionTitle(type, item) {
 
 function getSectionSubtitle(type, item) {
   if (type === "education") {
-    return [item.degree, item.major].filter(Boolean).join(" · ") || "Education";
+    return [item.degree, item.major].filter(Boolean).join(" 路 ") || "Education";
   }
 
   if (type === "experience") {
@@ -3034,3 +3057,4 @@ function downloadSkillCsvTemplate() {
 }
 
 export default App;
+

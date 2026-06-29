@@ -1243,6 +1243,16 @@ label {
   color: #9ca3af;
 }
 
+.pdf-exporting .ats-editable:empty::before,
+.exporting-pdf .ats-editable:empty::before {
+  content: "";
+}
+
+.pdf-exporting .empty-contact-part,
+.exporting-pdf .empty-contact-part {
+  display: none;
+}
+
 .ats-editable:focus {
   background: #eef6ff;
   box-shadow: 0 0 0 2px rgba(36, 93, 143, 0.12);
