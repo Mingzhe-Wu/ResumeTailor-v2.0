@@ -198,6 +198,10 @@ public class ResumeService {
         }
     }
 
+    public void markExistingResumeDirtyForGeneration(Long jobId) {
+        resumeMapper.markResumeDirtyByJobId(jobId);
+    }
+
     private String callLlmWithRetry(String prompt) {
         int maxAttempts = 3;
 
@@ -331,7 +335,7 @@ public class ResumeService {
                 
                 Bullet Allocation:
                 - Allocate bullet points dynamically based on relevance and available space.
-                - The entire resume should typically contain approximately 9–12 bullet points in total.
+                - The entire resume should typically contain approximately 8–11 bullet points in total.
                 - Highly relevant experiences or projects may receive additional bullet points only if lower-priority sections are compressed accordingly.
                 - Prefer merging related accomplishments into a single stronger bullet rather than creating many short bullets.
                 - Avoid excessive bullet lists for any single experience or project.
@@ -353,7 +357,7 @@ public class ResumeService {
                 - Instead, highlight the technologies most relevant to the target job description.
                 - Curate the skills section instead of listing every available skill.
                 - Include at most 5 skill categories.
-                - Include approximately 15 of the most relevant technical skills, preferring the most desired from job description.
+                - Include approximately 20 of the most relevant technical skills, preferring the most desired from job description.
                 - Remove outdated, redundant, or low-value skills.
                 - Prefer quality over quantity.
                 - Skill category names do not need to follow any predefined list.
