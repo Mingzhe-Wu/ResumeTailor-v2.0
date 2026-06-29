@@ -2392,7 +2392,7 @@ function EditableExperienceItem({ item, onChange }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong>
+        <strong className="ats-item-title">
           <EditableText
             value={company || ""}
             placeholder="Company"
@@ -2405,7 +2405,7 @@ function EditableExperienceItem({ item, onChange }) {
             onSave={(value) => onChange(updateFirstExistingField(item, ["title", "position", "role"], value))}
           />
         </strong>
-        <span>
+        <span className="ats-item-date">
           <EditableText
             value={formatDateRange(item.startDate, item.endDate)}
             placeholder="Date range"
@@ -2435,14 +2435,14 @@ function EditableProjectItem({ item, onChange }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong>
+        <strong className="ats-item-title">
           <EditableText
             value={name || ""}
             placeholder="Project name"
             onSave={(value) => onChange(updateFirstExistingField(item, ["name", "projectName"], value))}
           />
         </strong>
-        <span>
+        <span className="ats-item-date">
           <EditableText
             value={formatDateRange(item.startDate, item.endDate)}
             placeholder="Date range"
@@ -2481,14 +2481,14 @@ function EditableEducationItem({ item, onChange }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong>
+        <strong className="ats-item-title">
           <EditableText
             value={school || ""}
             placeholder="School"
             onSave={(value) => onChange(updateFirstExistingField(item, ["school", "schoolName"], value))}
           />
         </strong>
-        <span>
+        <span className="ats-item-date">
           <EditableText
             value={dateLine}
             placeholder="Location | Date range"
@@ -2675,8 +2675,8 @@ function ExperienceResumeItem({ item }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong>{heading}</strong>
-        {dateRange && <span>{dateRange}</span>}
+        <strong className="ats-item-title">{heading}</strong>
+        {dateRange && <span className="ats-item-date">{dateRange}</span>}
       </div>
       {item.location && <p className="ats-meta">{item.location}</p>}
       <BulletList bullets={item.bullets || item.details || item.description} />
@@ -2692,8 +2692,8 @@ function ProjectResumeItem({ item }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong>{name}</strong>
-        {dateRange && <span>{dateRange}</span>}
+        <strong className="ats-item-title">{name}</strong>
+        {dateRange && <span className="ats-item-date">{dateRange}</span>}
       </div>
       {techStack && <p className="ats-meta">{techStack}</p>}
       <BulletList bullets={item.bullets || item.details || item.description} />
@@ -2710,9 +2710,9 @@ function EducationResumeItem({ item }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong>{school}</strong>
+        <strong className="ats-item-title">{school}</strong>
         {[item.location, dateRange].filter(Boolean).length > 0 && (
-          <span>{[item.location, dateRange].filter(Boolean).join(" | ")}</span>
+          <span className="ats-item-date">{[item.location, dateRange].filter(Boolean).join(" | ")}</span>
         )}
       </div>
       {(degreeLine || item.location || item.gpa) && (
@@ -2800,41 +2800,33 @@ function formatDelimitedList(value, separator = " • ") {
 }
 
 async function exportResumeElementToPdf(element, filename) {
-  element.classList.add("pdf-export");
+  await document.fonts?.ready;
 
-  try {
-    const canvas = await html2canvas(element, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
-    });
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    scrollX: -window.scrollX,
+    scrollY: -window.scrollY,
+    logging: false,
+  });
 
-    const imageData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imageRatio = canvas.width / canvas.height;
-    let imageWidth = pageWidth;
-    let imageHeight = imageWidth / imageRatio;
+  const imageData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "px",
+    format: [canvas.width, canvas.height],
+  });
 
-    if (imageHeight > pageHeight) {
-      imageHeight = pageHeight;
-      imageWidth = imageHeight * imageRatio;
-    }
-
-    pdf.addImage(imageData, "PNG", (pageWidth - imageWidth) / 2, 0, imageWidth, imageHeight);
-    pdf.save(filename);
-  } finally {
-    element.classList.remove("pdf-export");
-  }
+  pdf.addImage(
+    imageData,
+    "PNG",
+    0,
+    0,
+    pdf.internal.pageSize.getWidth(),
+    pdf.internal.pageSize.getHeight()
+  );
+  pdf.save(filename);
 }
 
 function buildResumePdfFilename(jobTitle) {
