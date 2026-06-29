@@ -1028,7 +1028,7 @@ label {
 }
 
 .resume-preview-title {
-  max-width: calc(100% - 180px);
+  max-width: calc(100% - 300px);
 }
 
 .resume-preview-header h2 {
@@ -1107,10 +1107,16 @@ label {
   white-space: nowrap;
 }
 
-.resume-save-button {
+.resume-header-actions {
   position: absolute;
   top: 20px;
   right: 22px;
+  display: flex;
+  gap: 8px;
+}
+
+.resume-save-button,
+.resume-export-button {
   min-width: 128px;
   margin-top: 0;
 }
@@ -1128,6 +1134,14 @@ label {
   font-size: 12.5px;
   line-height: 1.36;
   box-shadow: 0 10px 28px rgba(23, 32, 51, 0.08);
+}
+
+.ats-resume.pdf-export {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .ats-contact {
@@ -1557,8 +1571,14 @@ label {
     max-width: 100%;
   }
 
-  .resume-save-button {
+  .resume-header-actions {
     position: static;
+    justify-content: center;
+  }
+
+  .resume-save-button,
+  .resume-export-button {
+    width: auto;
   }
 
   .job-detail-card {

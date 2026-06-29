@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import api from "./api";
 import "./App.css";
 
@@ -149,6 +151,7 @@ function App() {
   const [resumePanelError, setResumePanelError] = useState("");
   const [resumePanelMessage, setResumePanelMessage] = useState("");
   const didMountJobFilters = useRef(false);
+  const resumePreviewRef = useRef(null);
 
   const handleGenerateResume = async (jobId) => {
     const confirmed = window.confirm(
@@ -189,7 +192,7 @@ function App() {
       try {
         const res = await api.get(`/api/resume/fetch/${jobId}`);
 
-        if (res.data) {
+        if (res.data && res.data.needGenerate === false) {
           clearInterval(intervalId);
           setGeneratedResume(res.data);
           setResumeContent(deepClone(res.data.generatedContent));
@@ -322,6 +325,20 @@ function App() {
       showToast("Generated resume saved.");
     } catch (err) {
       showErrorToast(err.response?.data?.message || "Failed to save resume.");
+    }
+  }
+
+  async function exportResumePdf() {
+    if (!resumePreviewRef.current) return;
+
+    try {
+      await exportResumeElementToPdf(
+        resumePreviewRef.current,
+        buildResumePdfFilename(selectedJob?.title)
+      );
+      showToast("Resume PDF exported.");
+    } catch (err) {
+      showErrorToast("Failed to export resume PDF.");
     }
   }
 
@@ -1346,13 +1363,22 @@ function App() {
                   </p>
                 </div>
                 {generatedResume && resumeContent && (
-                  <button
-                    type="button"
-                    className="primary-button resume-save-button"
-                    onClick={saveResumeContent}
-                  >
-                    Save Resume
-                  </button>
+                  <div className="resume-header-actions">
+                    <button
+                      type="button"
+                      className="primary-button resume-save-button"
+                      onClick={saveResumeContent}
+                    >
+                      Save Resume
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button resume-export-button"
+                      onClick={exportResumePdf}
+                    >
+                      Export PDF
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1386,6 +1412,7 @@ function App() {
                   <EditableResumePreview
                     resume={resumeContent}
                     onChange={setResumeContent}
+                    resumeRef={resumePreviewRef}
                   />
                 </>
               ) : (
@@ -2195,7 +2222,7 @@ function ResumeBuilderToolbar({ resume, onSummaryToggle, onSectionToggle }) {
   );
 }
 
-function EditableResumePreview({ resume, onChange }) {
+function EditableResumePreview({ resume, onChange, resumeRef }) {
   if (!resume || typeof resume !== "object") {
     return (
       <div className="resume-empty-state">
@@ -2252,7 +2279,7 @@ function EditableResumePreview({ resume, onChange }) {
   };
 
   return (
-    <article className="ats-resume">
+    <article className="ats-resume" ref={resumeRef}>
       <header className="ats-contact">
         <h1>
           <EditableText
@@ -2770,6 +2797,53 @@ function formatDelimitedList(value, separator = " • ") {
   }
 
   return value || "";
+}
+
+async function exportResumeElementToPdf(element, filename) {
+  element.classList.add("pdf-export");
+
+  try {
+    const canvas = await html2canvas(element, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+    });
+
+    const imageData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imageRatio = canvas.width / canvas.height;
+    let imageWidth = pageWidth;
+    let imageHeight = imageWidth / imageRatio;
+
+    if (imageHeight > pageHeight) {
+      imageHeight = pageHeight;
+      imageWidth = imageHeight * imageRatio;
+    }
+
+    pdf.addImage(imageData, "PNG", (pageWidth - imageWidth) / 2, 0, imageWidth, imageHeight);
+    pdf.save(filename);
+  } finally {
+    element.classList.remove("pdf-export");
+  }
+}
+
+function buildResumePdfFilename(jobTitle) {
+  const safeTitle = jobTitle
+    ?.trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .replace(/\s+/g, "_");
+
+  return safeTitle ? `Resume_${safeTitle}.pdf` : "Resume.pdf";
 }
 
 function getResumeSectionTitle(type) {
