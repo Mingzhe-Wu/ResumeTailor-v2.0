@@ -4,6 +4,7 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -55,6 +56,42 @@ public interface SkillMapper {
         ORDER BY id DESC
         """)
     List<Skill> findByProfileId(Long profileId);
+
+    @Select("""
+        <script>
+        SELECT
+            id,
+            profile_id,
+            category,
+            name,
+            created_at,
+            updated_at
+        FROM skills
+        WHERE profile_id = #{profileId}
+        <if test="name != null and name.trim() != ''">
+          AND name ILIKE '%' || #{name} || '%'
+        </if>
+        <if test="category != null and category.trim() != ''">
+          AND category ILIKE '%' || #{category} || '%'
+        </if>
+        ORDER BY id DESC
+        </script>
+        """)
+    List<Skill> searchSkills(
+            @Param("profileId") Long profileId,
+            @Param("name") String name,
+            @Param("category") String category
+    );
+
+    @Select("""
+        SELECT DISTINCT category
+        FROM skills
+        WHERE profile_id = #{profileId}
+          AND category IS NOT NULL
+          AND TRIM(category) <> ''
+        ORDER BY category
+        """)
+    List<String> findCategoriesByProfileId(Long profileId);
 
     @Update("""
         <script>

@@ -68,6 +68,9 @@ function App() {
   const [experiences, setExperiences] = useState([]);
   const [projects, setProjects] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [skillCategories, setSkillCategories] = useState([]);
+  const [skillSearchName, setSkillSearchName] = useState("");
+  const [skillSearchCategory, setSkillSearchCategory] = useState("");
 
   const [editingItem, setEditingItem] = useState(null);
   const [sectionError, setSectionError] = useState("");
@@ -235,6 +238,26 @@ function App() {
 
     return () => clearTimeout(timeoutId);
   }, [message]);
+
+  useEffect(() => {
+    if (profileTab !== "skill" || !profile?.id) {
+      return;
+    }
+
+    fetchSkillCategories(profile.id);
+  }, [profileTab, profile?.id]);
+
+  useEffect(() => {
+    if (profileTab !== "skill" || !profile?.id) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      refreshSkillSearch(skillSearchName, skillSearchCategory);
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [skillSearchName]);
 
   useEffect(() => {
     if (!selectedJob) {
@@ -425,6 +448,10 @@ function App() {
     }
 
     await fetchProfileSections(profile.id);
+    if (type === "skill") {
+      await fetchSkillCategories(profile.id);
+      await refreshSkillSearch(skillSearchName, skillSearchCategory);
+    }
     await fetchJobs(selectedJob?.id);
     setMessage(`${capitalize(type)} deleted successfully.`);
   } catch (err) {
@@ -669,6 +696,48 @@ function App() {
     }
   }
 
+  async function fetchSkillCategories(profileId) {
+    try {
+      const response = await api.get(`/api/skill/categories/${profileId}`);
+      setSkillCategories(response.data);
+    } catch (err) {
+      setSectionError(
+        err.response?.data?.message || "Failed to fetch skill categories"
+      );
+    }
+  }
+
+  async function refreshSkillSearch(name = skillSearchName, category = skillSearchCategory) {
+    if (!profile?.id) return;
+
+    try {
+      setSectionError("");
+
+      const trimmedName = name.trim();
+      const trimmedCategory = category.trim();
+
+      if (trimmedName === "" && trimmedCategory === "") {
+        const response = await api.get(`/api/skill/fetch/${profile.id}`);
+        setSkills(response.data);
+        return;
+      }
+
+      const response = await api.post("/api/skill/search", {
+        profileId: profile.id,
+        name: trimmedName,
+        category: trimmedCategory,
+      });
+      setSkills(response.data);
+    } catch (err) {
+      setSectionError(err.response?.data?.message || "Failed to search skills");
+    }
+  }
+
+  function handleSkillCategorySearchChange(value) {
+    setSkillSearchCategory(value);
+    refreshSkillSearch(skillSearchName, value);
+  }
+
   function switchProfileTab(tab) {
     setProfileTab(tab);
     setEditingItem(null);
@@ -793,6 +862,10 @@ function App() {
       setShowSectionAddModal(false);
       setSectionAddForm(emptyForms[sectionAddType]);
       await fetchProfileSections(profile.id);
+      if (sectionAddType === "skill") {
+        await fetchSkillCategories(profile.id);
+        await refreshSkillSearch(skillSearchName, skillSearchCategory);
+      }
       await fetchJobs(selectedJob?.id);
     } catch (err) {
       setSectionError(
@@ -821,6 +894,8 @@ function App() {
       );
 
       await fetchProfileSections(profile.id);
+      await fetchSkillCategories(profile.id);
+      await refreshSkillSearch(skillSearchName, skillSearchCategory);
       await fetchJobs(selectedJob?.id);
 
       setMessage(
@@ -848,6 +923,10 @@ function App() {
       setEditingItem(null);
       setSectionForm(emptyForms[profileTab]);
       await fetchProfileSections(profile.id);
+      if (profileTab === "skill") {
+        await fetchSkillCategories(profile.id);
+        await refreshSkillSearch(skillSearchName, skillSearchCategory);
+      }
       await fetchJobs(selectedJob?.id);
     } catch (err) {
       setSectionError(
@@ -1353,6 +1432,11 @@ function App() {
   deleteSection={deleteSection}
   canUpdateSection={canSaveSectionForm(profileTab, sectionForm)}
   importSkillsCsv={importSkillsCsv}
+  skillSearchName={skillSearchName}
+  setSkillSearchName={setSkillSearchName}
+  skillSearchCategory={skillSearchCategory}
+  handleSkillCategorySearchChange={handleSkillCategorySearchChange}
+  skillCategories={skillCategories}
 />
                   )}
                 </div>
@@ -1563,6 +1647,11 @@ function SectionManager({
   canUpdateSection,
   importSkillsCsv,
   deleteSection,
+  skillSearchName,
+  setSkillSearchName,
+  skillSearchCategory,
+  handleSkillCategorySearchChange,
+  skillCategories,
 }) {
   return (
     <>
@@ -1584,6 +1673,33 @@ function SectionManager({
             }}
           />
           <p className="empty-text">CSV format: category,name</p>
+        </div>
+      )}
+
+      {type === "skill" && (
+        <div className="skill-search-row">
+          <div className="form-field">
+            <label>Search Name</label>
+            <input
+              value={skillSearchName}
+              onChange={(e) => setSkillSearchName(e.target.value)}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Category</label>
+            <select
+              value={skillSearchCategory}
+              onChange={(e) => handleSkillCategorySearchChange(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {skillCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 

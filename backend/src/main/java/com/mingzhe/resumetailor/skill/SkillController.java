@@ -33,6 +33,16 @@ public class SkillController {
         return ResponseEntity.ok(skillService.fetchSkillsByProfileId(profileId));
     }
 
+    @PostMapping("/search")
+    public ResponseEntity<List<Skill>> searchSkills(@RequestBody @Valid SearchSkillDTO request) {
+        return ResponseEntity.ok(skillService.searchSkills(request));
+    }
+
+    @GetMapping("/categories/{profileId}")
+    public ResponseEntity<List<String>> getSkillCategories(@PathVariable Long profileId) {
+        return ResponseEntity.ok(skillService.fetchCategoriesByProfileId(profileId));
+    }
+
     @PutMapping("/update/{id}")
     public ResponseEntity<Skill> updateSkill(@PathVariable Long id,
                                              @RequestBody @Valid UpdateSkillDTO request) {

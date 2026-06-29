@@ -795,6 +795,17 @@ label {
   cursor: pointer;
 }
 
+.skill-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.6fr);
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
 .job-card {
   border-radius: 12px;
   background: var(--surface-soft);
@@ -1214,6 +1225,10 @@ label {
   }
 
   .job-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-search-row {
     grid-template-columns: 1fr;
   }
 

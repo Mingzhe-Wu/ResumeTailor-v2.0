@@ -55,6 +55,28 @@ public class SkillService {
         return skillMapper.findByProfileId(profileId);
     }
 
+    public List<Skill> searchSkills(SearchSkillDTO request) {
+        Profile profile = profileMapper.findById(request.getProfileId());
+        if (profile == null) {
+            throw new ResourceNotFoundException("Profile not found");
+        }
+
+        return skillMapper.searchSkills(
+                request.getProfileId(),
+                request.getName(),
+                request.getCategory()
+        );
+    }
+
+    public List<String> fetchCategoriesByProfileId(Long profileId) {
+        Profile profile = profileMapper.findById(profileId);
+        if (profile == null) {
+            throw new ResourceNotFoundException("Profile not found");
+        }
+
+        return skillMapper.findCategoriesByProfileId(profileId);
+    }
+
     public Skill updateSkill(Long id, UpdateSkillDTO request) {
         Skill existingSkill = skillMapper.findById(id);
         if (existingSkill == null) {
