@@ -802,12 +802,28 @@ label {
 }
 
 .panel-header {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) 118px;
+  align-items: center;
+  gap: 12px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
 }
 
 .panel-header h2 {
+  grid-column: 2;
   color: var(--primary-strong);
+  text-align: center;
+}
+
+.panel-header button {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.panel-header .small-button {
+  min-width: 104px;
+  white-space: nowrap;
 }
 
 .job-filter-row {
@@ -893,14 +909,36 @@ label {
   box-shadow: var(--shadow-soft);
 }
 
+.create-job-modal {
+  max-width: 960px;
+  width: min(960px, calc(100vw - 48px));
+}
+
+.create-job-modal .job-detail-heading {
+  padding-right: 0;
+  padding-left: 0;
+}
+
 .job-detail-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 170px;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.job-detail-heading > div {
+  grid-column: 2;
+}
+
+.generate-heading-button {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 150px;
+  margin-top: 0;
 }
 
 .job-detail-heading h2 {
@@ -951,6 +989,7 @@ label {
 .modal-action-row {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
   padding-top: 18px;
@@ -1311,6 +1350,16 @@ label {
 
   .job-detail-card {
     padding: 18px;
+  }
+
+  .job-detail-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .job-detail-heading > div,
+  .generate-heading-button {
+    grid-column: 1;
+    justify-self: center;
   }
 
   .job-field-grid {

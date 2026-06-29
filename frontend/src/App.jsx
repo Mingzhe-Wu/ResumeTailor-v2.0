@@ -1117,6 +1117,16 @@ function App() {
                     <h2>Edit Job Detail</h2>
                     <p>{selectedJob.company || "Company"} · {statusMap[selectedJob.status] || "Unknown"}</p>
                   </div>
+                  <button
+                    type="button"
+                    className="primary-button generate-heading-button"
+                    onClick={() => handleGenerateResume(selectedJob.id)}
+                    disabled={generatingJobId === selectedJob.id}
+                  >
+                    {generatingJobId === selectedJob.id
+                      ? "Generating..."
+                      : "Generate Resume"}
+                  </button>
                 </div>
 
                 {jobError && <p className="error-text">{jobError}</p>}
@@ -1239,16 +1249,6 @@ function App() {
                     Delete Job
                   </button>
 
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={() => handleGenerateResume(selectedJob.id)}
-                    disabled={generatingJobId === selectedJob.id}
-                  >
-                    {generatingJobId === selectedJob.id
-                      ? "Generating..."
-                      : "Generate Resume"}
-                  </button>
                 </div>
               </div>
             ) : (
@@ -1338,7 +1338,7 @@ function App() {
             onClick={() => setShowJobModal(false)}
           >
             <div
-              className="profile-modal"
+              className="profile-modal create-job-modal"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -1348,96 +1348,127 @@ function App() {
                 ×
               </button>
 
-              <h2>Create Job</h2>
+              <div className="job-detail-heading">
+                <div>
+                  <h2>Create Job</h2>
+                  <p>Add a new opportunity to your tracker.</p>
+                </div>
+              </div>
 
               {jobError && <p className="error-text">{jobError}</p>}
 
-              <label>Title *</label>
-              <input
-                name="title"
-                value={jobForm.title}
-                onChange={handleJobChange}
-              />
+              <div className="job-field-grid">
+                <div className="form-field">
+                  <label>Title <span className="required-marker">*</span></label>
+                  <input
+                    name="title"
+                    value={jobForm.title}
+                    onChange={handleJobChange}
+                  />
+                </div>
 
-              <label>Company *</label>
-              <input
-                name="company"
-                value={jobForm.company}
-                onChange={handleJobChange}
-              />
+                <div className="form-field">
+                  <label>Company <span className="required-marker">*</span></label>
+                  <input
+                    name="company"
+                    value={jobForm.company}
+                    onChange={handleJobChange}
+                  />
+                </div>
 
-              <label>Location</label>
-              <input
-                name="location"
-                value={jobForm.location}
-                onChange={handleJobChange}
-              />
+                <div className="form-field">
+                  <label>Location</label>
+                  <input
+                    name="location"
+                    value={jobForm.location}
+                    onChange={handleJobChange}
+                  />
+                </div>
 
-              <label>Salary</label>
-              <input
-                name="salary"
-                value={jobForm.salary}
-                onChange={handleJobChange}
-              />
+                <div className="form-field">
+                  <label>Salary</label>
+                  <input
+                    name="salary"
+                    value={jobForm.salary}
+                    onChange={handleJobChange}
+                  />
+                </div>
 
-              <label>Job Description</label>
-              <textarea
-                name="jobDescription"
-                value={jobForm.jobDescription}
-                onChange={handleJobChange}
-              />
+                <div className="form-field">
+                  <label>Status</label>
+                  <select
+                    name="status"
+                    value={jobForm.status}
+                    onChange={handleJobChange}
+                  >
+                    <option value={1}>Saved</option>
+                    <option value={2}>Applied</option>
+                    <option value={3}>Interview</option>
+                    <option value={4}>Offer</option>
+                    <option value={5}>Rejected</option>
+                  </select>
+                </div>
 
-              <label>Source URL</label>
-              <input
-                name="sourceUrl"
-                value={jobForm.sourceUrl}
-                onChange={handleJobChange}
-              />
+                <div className="form-field">
+                  <label>Source URL</label>
+                  <input
+                    name="sourceUrl"
+                    value={jobForm.sourceUrl}
+                    onChange={handleJobChange}
+                  />
+                </div>
 
-              <label>Status</label>
-              <select
-                name="status"
-                value={jobForm.status}
-                onChange={handleJobChange}
-              >
-                <option value={1}>Saved</option>
-                <option value={2}>Applied</option>
-                <option value={3}>Interview</option>
-                <option value={4}>Offer</option>
-                <option value={5}>Rejected</option>
-              </select>
+                <div className="form-field">
+                  <label>Interview Time</label>
+                  <input
+                    type="datetime-local"
+                    name="interviewTime"
+                    value={jobForm.interviewTime}
+                    onChange={handleJobChange}
+                  />
+                </div>
 
-              <label>Interview Time</label>
-              <input
-                type="datetime-local"
-                name="interviewTime"
-                value={jobForm.interviewTime}
-                onChange={handleJobChange}
-              />
+                <div className="form-field">
+                  <label>Priority</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="priority"
+                    value={jobForm.priority}
+                    onChange={handleJobChange}
+                  />
+                </div>
+              </div>
 
-              <label>Priority</label>
-              <input
-                type="number"
-                min="0"
-                name="priority"
-                value={jobForm.priority}
-                onChange={handleJobChange}
-              />
+              <div className="form-field full-row">
+                <label>Job Description</label>
+                <textarea
+                  className="job-description-input"
+                  name="jobDescription"
+                  value={jobForm.jobDescription}
+                  onChange={handleJobChange}
+                />
+              </div>
 
-              <label>Notes</label>
-              <textarea
-                name="notes"
-                value={jobForm.notes}
-                onChange={handleJobChange}
-              />
+              <div className="form-field full-row">
+                <label>Notes</label>
+                <textarea
+                  className="job-notes-input"
+                  name="notes"
+                  value={jobForm.notes}
+                  onChange={handleJobChange}
+                />
+              </div>
 
-              <button
-                className="primary-button"
-                disabled={!canCreateJob}
-                onClick={createJob}
-              >
-                Create Job
-              </button>
+              <div className="modal-action-row">
+                <button
+                  className="primary-button"
+                  disabled={!canCreateJob}
+                  onClick={createJob}
+                >
+                  Create Job
+                </button>
+              </div>
             </div>
           </div>
         )}
