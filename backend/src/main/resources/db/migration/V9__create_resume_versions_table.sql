@@ -5,8 +5,8 @@ CREATE TABLE resume_versions (
 
     match_score INTEGER,
 
-    generated_content TEXT NOT NULL,
-    
+    generated_content JSONB NOT NULL,
+
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

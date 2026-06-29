@@ -25,7 +25,7 @@ public class ResumeController {
     }
 
     @GetMapping("/fetch/{jobId}")
-    public ResponseEntity<Resume> getResumesByJobId(@PathVariable Long jobId) {
+    public ResponseEntity<ResumeResponseDTO> getResumesByJobId(@PathVariable Long jobId) {
         return ResponseEntity.ok(resumeService.fetchResumesByJobId(jobId));
     }
 

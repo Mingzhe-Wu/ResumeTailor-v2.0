@@ -16,7 +16,7 @@ public interface ResumeMapper {
         ) VALUES (
             #{jobId},
             #{matchScore},
-            #{generatedContent}
+            CAST(#{generatedContent} AS jsonb)
         )
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
@@ -57,7 +57,7 @@ public interface ResumeMapper {
         UPDATE resume_versions
         <set>
             <if test="matchScore != null">match_score = #{matchScore},</if>
-            <if test="generatedContent != null">generated_content = #{generatedContent},</if>
+            <if test="generatedContent != null">generated_content = CAST(#{generatedContent} AS jsonb),</if>
             <if test="needGenerate != null">need_generate = #{needGenerate},</if>
             updated_at = NOW()
         </set>

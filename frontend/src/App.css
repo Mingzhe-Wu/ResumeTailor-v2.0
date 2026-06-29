@@ -767,7 +767,7 @@ label {
 }
 
 .dashboard-layout {
-  grid-template-columns: minmax(260px, 0.8fr) minmax(470px, 1.45fr) minmax(340px, 0.95fr);
+  grid-template-columns: minmax(240px, 0.76fr) minmax(390px, 1fr) minmax(30vw, 1.18fr);
   align-items: start;
   gap: 20px;
   height: calc(100vh - 124px);
@@ -902,7 +902,7 @@ label {
 .job-detail-card {
   width: 100%;
   margin: 0 auto;
-  padding: 24px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
@@ -1074,28 +1074,111 @@ label {
   line-height: 1.45;
 }
 
-.resume-preview-editor {
-  flex: 1;
-  min-height: 520px;
-  margin: 18px 22px 0;
-  padding: 18px;
-  border-radius: 12px;
+.ats-resume {
+  width: min(100%, 8.5in);
+  min-height: 10.5in;
+  margin: 18px auto 22px;
+  padding: 0.42in 0.5in;
+  border: 1px solid #d5dce5;
+  border-radius: 6px;
   background: #ffffff;
-  font-family: "Courier New", Consolas, monospace;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.36;
+  box-shadow: 0 10px 28px rgba(23, 32, 51, 0.08);
+}
+
+.ats-contact {
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #111827;
+}
+
+.ats-contact h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.ats-contact p {
+  max-width: 100%;
+  margin: 5px auto 0;
+  color: #374151;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ats-section {
+  margin-top: 10px;
+}
+
+.ats-section h2 {
+  margin: 0 0 5px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #9ca3af;
+  color: #111827;
   font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
-.resume-preview-actions {
-  padding: 16px 22px 22px;
-  border-top: 1px solid var(--border);
-  margin-top: 18px;
+.ats-summary {
+  margin: 0;
 }
 
-.resume-preview-actions button {
-  width: 100%;
-  margin-top: 0;
+.ats-item {
+  margin-bottom: 7px;
+  text-align: left;
+}
+
+.ats-item-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  color: #111827;
+  text-align: left;
+}
+
+.ats-item-heading strong {
+  min-width: 0;
+  font-weight: 700;
+}
+
+.ats-item-heading span {
+  flex-shrink: 0;
+  color: #374151;
+  font-size: 12px;
+  text-align: right;
+}
+
+.ats-meta {
+  margin: 1px 0 0;
+  color: #374151;
+  font-size: 12px;
+  text-align: left;
+}
+
+.ats-bullets {
+  margin: 3px 0 0;
+  padding-left: 18px;
+  text-align: left;
+}
+
+.ats-bullets li {
+  margin: 1px 0;
+  padding-left: 1px;
+}
+
+.ats-skills p {
+  margin: 3px 0;
+  text-align: left;
 }
 
 .modal-overlay {
@@ -1303,8 +1386,19 @@ label {
     min-height: 520px;
   }
 
-  .resume-preview-editor {
+  .ats-resume {
     min-height: 360px;
+    padding: 24px 22px;
+  }
+
+  .ats-item-heading {
+    display: block;
+  }
+
+  .ats-item-heading span {
+    display: block;
+    margin-top: 1px;
+    text-align: left;
   }
 }
 

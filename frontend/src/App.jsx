@@ -144,7 +144,6 @@ function App() {
 
   const [generatingJobId, setGeneratingJobId] = useState(null);
   const [generatedResume, setGeneratedResume] = useState(null);
-  const [resumeForm, setResumeForm] = useState("");
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumePanelError, setResumePanelError] = useState("");
   const [resumePanelMessage, setResumePanelMessage] = useState("");
@@ -192,7 +191,6 @@ function App() {
         if (res.data) {
           clearInterval(intervalId);
           setGeneratedResume(res.data);
-          setResumeForm(res.data.generatedContent || "");
           setResumeLoading(false);
           setResumePanelError("");
           setResumePanelMessage("");
@@ -263,7 +261,6 @@ function App() {
   useEffect(() => {
     if (!selectedJob) {
       setGeneratedResume(null);
-      setResumeForm("");
       setResumeLoading(false);
       setResumePanelError("");
       setResumePanelMessage("");
@@ -285,14 +282,11 @@ function App() {
 
       if (response.data) {
         setGeneratedResume(response.data);
-        setResumeForm(response.data.generatedContent || "");
       } else {
         setGeneratedResume(null);
-        setResumeForm("");
       }
     } catch (err) {
       setGeneratedResume(null);
-      setResumeForm("");
 
       if (err.response?.status !== 404) {
         setResumePanelError(
@@ -1293,34 +1287,7 @@ function App() {
                     <p className="resume-panel-message">{resumePanelMessage}</p>
                   )}
 
-                  <textarea
-                    className="resume-preview-editor"
-                    value={resumeForm}
-                    onChange={(e) => setResumeForm(e.target.value)}
-                  />
-
-                  <div className="resume-preview-actions">
-                    <button
-                      type="button"
-                      className="primary-button"
-                      disabled={resumeForm.trim() === ""}
-                      onClick={async () => {
-                        await api.put(`/api/resume/update/${generatedResume.id}`, {
-                          generatedContent: resumeForm,
-                        });
-
-                        setGeneratedResume({
-                          ...generatedResume,
-                          generatedContent: resumeForm,
-                        });
-
-                        setResumePanelMessage("Resume saved successfully.");
-                        showToast("Generated resume saved.");
-                      }}
-                    >
-                      Save Resume
-                    </button>
-                  </div>
+                  <ResumePreview resume={generatedResume.generatedContent} />
                 </>
               ) : (
                 <div className="resume-empty-state">
@@ -2090,6 +2057,226 @@ function SectionList({
       )}
     </div>
   );
+}
+
+function ResumePreview({ resume }) {
+  if (!resume || typeof resume !== "object") {
+    return (
+      <div className="resume-empty-state">
+        <h3>Resume preview unavailable</h3>
+        <p>The generated resume content is not in the expected structured format.</p>
+      </div>
+    );
+  }
+
+  const contact = resume.contact || {};
+  const sections = Array.isArray(resume.sections)
+    ? [...resume.sections]
+        .filter((section) => section.visible !== false)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    : [];
+
+  const contactParts = [
+    contact.location,
+    contact.email,
+    contact.phone,
+    contact.linkedin,
+    contact.github,
+  ].filter(Boolean);
+
+  return (
+    <article className="ats-resume">
+      <header className="ats-contact">
+        <h1>{contact.name || "Candidate Name"}</h1>
+        {contactParts.length > 0 && (
+          <p>{contactParts.join(" • ")}</p>
+        )}
+      </header>
+
+      {resume.summary?.visible !== false && resume.summary?.content && (
+        <section className="ats-section">
+          <h2>Summary</h2>
+          <p className="ats-summary">{resume.summary.content}</p>
+        </section>
+      )}
+
+      {sections.map((section) => (
+        <ResumeSection key={section.id || `${section.type}-${section.order}`} section={section} />
+      ))}
+    </article>
+  );
+}
+
+function ResumeSection({ section }) {
+  const items = Array.isArray(section.items)
+    ? section.items.filter((item) => item.visible !== false)
+    : [];
+  const type = String(section.type || "").toLowerCase();
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="ats-section">
+      <h2>{section.title || getResumeSectionTitle(type)}</h2>
+
+      {type.includes("experience") && items.map((item, index) => (
+        <ExperienceResumeItem key={item.id || index} item={item} />
+      ))}
+
+      {type.includes("project") && items.map((item, index) => (
+        <ProjectResumeItem key={item.id || index} item={item} />
+      ))}
+
+      {type.includes("education") && items.map((item, index) => (
+        <EducationResumeItem key={item.id || index} item={item} />
+      ))}
+
+      {type.includes("skill") && <SkillResumeItems items={items} />}
+    </section>
+  );
+}
+
+function ExperienceResumeItem({ item }) {
+  const title = item.title || item.position || item.role;
+  const company = item.company || item.companyName;
+  const heading = [company, title].filter(Boolean).join(" | ");
+  const dateRange = formatDateRange(item.startDate, item.endDate);
+
+  return (
+    <div className="ats-item">
+      <div className="ats-item-heading">
+        <strong>{heading}</strong>
+        {dateRange && <span>{dateRange}</span>}
+      </div>
+      {item.location && <p className="ats-meta">{item.location}</p>}
+      <BulletList bullets={item.bullets || item.details || item.description} />
+    </div>
+  );
+}
+
+function ProjectResumeItem({ item }) {
+  const name = item.name || item.projectName;
+  const dateRange = formatDateRange(item.startDate, item.endDate);
+  const techStack = formatDelimitedList(item.techStack);
+
+  return (
+    <div className="ats-item">
+      <div className="ats-item-heading">
+        <strong>{name}</strong>
+        {dateRange && <span>{dateRange}</span>}
+      </div>
+      {techStack && <p className="ats-meta">{techStack}</p>}
+      <BulletList bullets={item.bullets || item.details || item.description} />
+    </div>
+  );
+}
+
+function EducationResumeItem({ item }) {
+  const school = item.school || item.schoolName;
+  const degreeLine = [item.degree, item.major].filter(Boolean).join(", ");
+  const details = item.details || item.relevantCoursework || item.description;
+  const dateRange = formatDateRange(item.startDate, item.endDate);
+
+  return (
+    <div className="ats-item">
+      <div className="ats-item-heading">
+        <strong>{school}</strong>
+        {[item.location, dateRange].filter(Boolean).length > 0 && (
+          <span>{[item.location, dateRange].filter(Boolean).join(" | ")}</span>
+        )}
+      </div>
+      {(degreeLine || item.location || item.gpa) && (
+        <p className="ats-meta">
+          {[degreeLine, item.gpa ? `GPA: ${item.gpa}` : ""]
+            .filter(Boolean)
+            .join(" | ")}
+        </p>
+      )}
+      <BulletList bullets={details} />
+    </div>
+  );
+}
+
+function SkillResumeItems({ items }) {
+  return (
+    <div className="ats-skills">
+      {items.map((item, index) => {
+        const skills = item.skills || item.names || item.items || item.name;
+        const skillText = formatDelimitedList(skills, ", ");
+
+        if (!skillText) return null;
+
+        return (
+          <p key={item.id || index}>
+            {item.category && <strong>{item.category}: </strong>}
+            {skillText}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function BulletList({ bullets }) {
+  const normalizedBullets = normalizeBullets(bullets);
+
+  if (normalizedBullets.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className="ats-bullets">
+      {normalizedBullets.map((bullet, index) => (
+        <li key={index}>{bullet}</li>
+      ))}
+    </ul>
+  );
+}
+
+function normalizeBullets(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : item?.content || item?.text || ""))
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*]\s*/, "").trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function formatDateRange(startDate, endDate) {
+  if (!startDate && !endDate) return "";
+  return [startDate, endDate || "Present"].filter(Boolean).join(" - ");
+}
+
+function formatDelimitedList(value, separator = " • ") {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        return item?.name || item?.label || item?.content || "";
+      })
+      .filter(Boolean)
+      .join(separator);
+  }
+
+  return value || "";
+}
+
+function getResumeSectionTitle(type) {
+  if (type.includes("experience")) return "Experience";
+  if (type.includes("project")) return "Projects";
+  if (type.includes("education")) return "Education";
+  if (type.includes("skill")) return "Skills";
+  return "Section";
 }
 
 function getSectionTitle(type, item) {
