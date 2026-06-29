@@ -67,7 +67,6 @@ public class JobService {
     }
 
     public List<Job> searchJobs(SearchJobDTO request) {
-        System.out.println(">>> service hit");
         User user = userMapper.findById(request.getUserId());
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
@@ -76,10 +75,6 @@ public class JobService {
         if (request.getStatus() != null) {
             validateStatus(request.getStatus());
         }
-
-        System.out.println(request.getKeyword());
-        System.out.println(request.getStatus());
-        System.out.println(request.getUserId());
 
         return jobMapper.searchByUserIdAndKeyword(
                 request.getUserId(),

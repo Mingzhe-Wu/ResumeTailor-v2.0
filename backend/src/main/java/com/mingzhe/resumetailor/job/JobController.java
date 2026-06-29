@@ -33,7 +33,6 @@ public class JobController {
 
     @PostMapping("/search")
     public ResponseEntity<List<Job>> searchJobs(@RequestBody @Valid SearchJobDTO request) {
-        System.out.println(">>> search endpoint hit");
         return ResponseEntity.ok(jobService.searchJobs(request));
     }
 
