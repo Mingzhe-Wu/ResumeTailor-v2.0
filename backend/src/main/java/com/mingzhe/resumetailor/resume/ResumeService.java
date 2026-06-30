@@ -3,7 +3,6 @@ package com.mingzhe.resumetailor.resume;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mingzhe.resumetailor.OpenAiService;
 import com.mingzhe.resumetailor.education.Education;
 import com.mingzhe.resumetailor.education.EducationMapper;
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
@@ -12,6 +11,8 @@ import com.mingzhe.resumetailor.experience.Experience;
 import com.mingzhe.resumetailor.experience.ExperienceMapper;
 import com.mingzhe.resumetailor.job.Job;
 import com.mingzhe.resumetailor.job.JobMapper;
+import com.mingzhe.resumetailor.openai.ChunkEmbeddingService;
+import com.mingzhe.resumetailor.openai.OpenAiResumeService;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
 import com.mingzhe.resumetailor.project.Project;
@@ -40,11 +41,12 @@ public class ResumeService {
     private final ResumeMapper resumeMapper;
     private final ObjectMapper objectMapper;
 
-    private final OpenAiService openAiService;
+    private final OpenAiResumeService openAiResumeService;
+    private final ChunkEmbeddingService  chunkEmbeddingService;
 
     private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
 
-    public ResumeService(JobMapper jobMapper, ProfileMapper profileMapper, ExperienceMapper experienceMapper, EducationMapper educationMapper, ProjectMapper projectMapper, SkillMapper skillMapper, ResumeMapper resumeMapper, ObjectMapper objectMapper, OpenAiService openAiService) {
+    public ResumeService(JobMapper jobMapper, ProfileMapper profileMapper, ExperienceMapper experienceMapper, EducationMapper educationMapper, ProjectMapper projectMapper, SkillMapper skillMapper, ResumeMapper resumeMapper, ObjectMapper objectMapper, OpenAiResumeService openAiResumeService, ChunkEmbeddingService chunkEmbeddingService) {
         this.jobMapper = jobMapper;
         this.profileMapper = profileMapper;
         this.experienceMapper = experienceMapper;
@@ -53,7 +55,8 @@ public class ResumeService {
         this.skillMapper = skillMapper;
         this.resumeMapper = resumeMapper;
         this.objectMapper = objectMapper;
-        this.openAiService = openAiService;
+        this.openAiResumeService = openAiResumeService;
+        this.chunkEmbeddingService = chunkEmbeddingService;
     }
 
     public Resume createResume(CreateResumeDTO request) {
@@ -153,6 +156,11 @@ public class ResumeService {
         ResumeGenerationContext context = fetchResumeContext(jobId);
         ensureGenerationAllowed(jobId);
 
+        Long userId = context.getProfile().getUserId();
+
+        log.info("Chunk Embedding generation started for jobId={}", jobId);
+        chunkEmbeddingService.embedPendingChunksByUserId(userId);
+
         // build structured prompt for calling OpenAI api with the context
         String prompt = buildPrompt(context);
 
@@ -210,7 +218,7 @@ public class ResumeService {
                 log.info("LLM attempt {} started", attempt);
 
                 // call OpenAi api to generate a response
-                String aiResponse = openAiService.generate(prompt);
+                String aiResponse = openAiResumeService.generate(prompt);
 
                 // validate the response
                 validateGeneratedResume(aiResponse);
@@ -335,7 +343,7 @@ public class ResumeService {
                 
                 Bullet Allocation:
                 - Allocate bullet points dynamically based on relevance and available space.
-                - The entire resume should typically contain approximately 8–11 bullet points in total.
+                - The entire resume should contain the most relevant bullet points only, preferrably around 10-12 bullet points, less is fine, but no more than 12.
                 - Highly relevant experiences or projects may receive additional bullet points only if lower-priority sections are compressed accordingly.
                 - Prefer merging related accomplishments into a single stronger bullet rather than creating many short bullets.
                 - Avoid excessive bullet lists for any single experience or project.

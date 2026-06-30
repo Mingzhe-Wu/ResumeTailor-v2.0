@@ -1,4 +1,4 @@
-package com.mingzhe.resumetailor;
+package com.mingzhe.resumetailor.openai;
 
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
  * Calls the OpenAI chat completion API to generate resume content.
  */
 @Service
-public class OpenAiService {
+public class OpenAiResumeService {
 
     // get api key from system environment to avoid risky behaviors
     private final String apiKey = System.getenv("OPENAI_API_KEY");

@@ -34,6 +34,7 @@ public interface ProfileEmbeddingChunkMapper {
             source_type,
             source_id,
             content_text,
+            embedding,
             embedding_model,
             embedding_status,
             created_at,
@@ -41,6 +42,10 @@ public interface ProfileEmbeddingChunkMapper {
         FROM profile_embedding_chunks
         WHERE id = #{id}
         """)
+    @Results(id = "ProfileEmbeddingChunkResultMap", value = {
+            @Result(column = "embedding", property = "embedding",
+                    typeHandler = PgVectorTypeHandler.class)
+    })
     ProfileEmbeddingChunk findById(Long id);
 
     @Select("""
@@ -50,6 +55,7 @@ public interface ProfileEmbeddingChunkMapper {
             source_type,
             source_id,
             content_text,
+            embedding,
             embedding_model,
             embedding_status,
             created_at,
@@ -57,6 +63,7 @@ public interface ProfileEmbeddingChunkMapper {
         FROM profile_embedding_chunks
         WHERE user_id = #{userId}
         """)
+    @ResultMap("ProfileEmbeddingChunkResultMap")
     List<ProfileEmbeddingChunk> findByUserId(Long userId);
 
     @Select("""
@@ -66,6 +73,7 @@ public interface ProfileEmbeddingChunkMapper {
             source_type,
             source_id,
             content_text,
+            embedding,
             embedding_model,
             embedding_status,
             created_at,
@@ -74,6 +82,7 @@ public interface ProfileEmbeddingChunkMapper {
         WHERE user_id = #{userId}
           AND embedding_status = CAST(#{embeddingStatus} AS embedding_status)
         """)
+    @ResultMap("ProfileEmbeddingChunkResultMap")
     List<ProfileEmbeddingChunk> findByUserIdAndStatus(
             @Param("userId") Long userId,
             @Param("embeddingStatus") EmbeddingStatus embeddingStatus
@@ -95,6 +104,9 @@ public interface ProfileEmbeddingChunkMapper {
         <script>
         UPDATE profile_embedding_chunks
         <set>
+            <if test="embedding != null">
+                embedding = #{embedding, typeHandler=com.mingzhe.resumetailor.rag.PgVectorTypeHandler},
+            </if>
             <if test="embeddingModel != null">
                 embedding_model = #{embeddingModel},
             </if>
