@@ -6,7 +6,7 @@ import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
 import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkService;
 import com.mingzhe.resumetailor.resume.ResumeMapper;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -99,7 +99,7 @@ public class SkillService {
 
         try{
             skillMapper.updateById(update);
-        } catch (DuplicateKeyException e) {
+        } catch (DataIntegrityViolationException e) {
             throw new BadRequestException("Skill already exists.");
         }
 

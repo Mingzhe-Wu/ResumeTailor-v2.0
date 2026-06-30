@@ -14,4 +14,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export function getApiErrorMessage(error, fallback = "Request failed") {
+  const data = error?.response?.data;
+
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  if (data && typeof data === "object") {
+    const message = data.message || data.error || data.detail;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+
+  if (error?.message && !error.response) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export default api;

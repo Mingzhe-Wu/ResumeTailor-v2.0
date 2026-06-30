@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import api from "./api";
+import api, { getApiErrorMessage } from "./api";
 import ResumePreviewPanel from "./components/resume/ResumePreviewPanel.jsx";
 import { exportResumeElementToPdf } from "./components/resume/resumePdfExport.js";
 import {
@@ -178,14 +178,14 @@ function App() {
 
       pollGeneratedResume(jobId);
     } catch (err) {
-      const backendMessage = err.response?.data?.message;
+      const backendMessage = getApiErrorMessage(err, "Failed to start resume generation.");
       if (backendMessage === "Resume is already up to date.") {
         showToast(backendMessage, "danger");
         setResumePanelMessage(backendMessage);
         fetchResumeForJob(jobId, true);
       } else {
-        showErrorToast(backendMessage || "Failed to start resume generation.");
-        setResumePanelError(backendMessage || "Failed to start resume generation.");
+        showErrorToast(backendMessage);
+        setResumePanelError(backendMessage);
       }
       setResumeLoading(false);
       setGeneratingJobId(null);
@@ -212,8 +212,9 @@ function App() {
           clearInterval(intervalId);
           setGeneratingJobId(null);
           setResumeLoading(false);
-          setResumePanelError("Failed to check generated resume.");
-          showErrorToast("Failed to check generated resume.");
+          const errorMessage = getApiErrorMessage(err, "Failed to check generated resume.");
+          setResumePanelError(errorMessage);
+          showErrorToast(errorMessage);
         }
       }
     }, 3000);
@@ -304,9 +305,7 @@ function App() {
       setResumeContent(null);
 
       if (err.response?.status !== 404) {
-        setResumePanelError(
-          err.response?.data?.message || "Failed to fetch generated resume."
-        );
+        setResumePanelError(getApiErrorMessage(err, "Failed to fetch generated resume."));
       }
     } finally {
       setResumeLoading(false);
@@ -329,7 +328,7 @@ function App() {
       });
       showToast("Generated resume saved.");
     } catch (err) {
-      showErrorToast(err.response?.data?.message || "Failed to save resume.");
+      showErrorToast(getApiErrorMessage(err, "Failed to save resume."));
     }
   }
 
@@ -500,12 +499,7 @@ function App() {
       setPassword("");
       setRegisterFullName("");
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          err.message ||
-          "Login failed"
-      );
+      setError(getApiErrorMessage(err, "Login failed"));
     }
   }
 
@@ -525,7 +519,7 @@ function App() {
       setRegisterFullName("");
       setMessage("Register success. Please login.");
     } catch (err) {
-      setError(err.response?.data?.message || "Register failed");
+      setError(getApiErrorMessage(err, "Register failed"));
     }
   }
 
@@ -536,7 +530,7 @@ function App() {
       const response = await api.get(`/api/job/fetch/${user.id}`);
       applyJobList(response.data, preferredJobId);
     } catch (err) {
-      setJobError(err.response?.data?.message || "Failed to fetch jobs");
+      setJobError(getApiErrorMessage(err, "Failed to fetch jobs"));
     }
   }
 
@@ -565,7 +559,7 @@ function App() {
       });
       applyJobList(response.data, preferredJobId);
     } catch (err) {
-      setJobError(err.response?.data?.message || "Failed to fetch jobs");
+      setJobError(getApiErrorMessage(err, "Failed to fetch jobs"));
     }
   }
 
@@ -607,9 +601,9 @@ function App() {
     await fetchJobs(selectedJob?.id);
     showToast(`${getSectionLabel(type)} deleted.`, "danger");
   } catch (err) {
-    setSectionError(
-      err.response?.data?.message || `Failed to delete ${type}`
-    );
+    const errorMessage = getApiErrorMessage(err, `Failed to delete ${type}`);
+    setSectionError(errorMessage);
+    showErrorToast(errorMessage);
   }
 }
 
@@ -696,7 +690,7 @@ function App() {
       await fetchJobs(response.data.id);
       showToast("Job created.");
     } catch (err) {
-      setJobError(err.response?.data?.message || "Failed to create job");
+      setJobError(getApiErrorMessage(err, "Failed to create job"));
     }
   }
 
@@ -724,7 +718,7 @@ function App() {
       await fetchJobs(response.data.id);
       showToast("Job saved.");
     } catch (err) {
-      setJobError(err.response?.data?.message || "Failed to update job");
+      setJobError(getApiErrorMessage(err, "Failed to update job"));
     }
   }
 
@@ -755,9 +749,7 @@ function App() {
     await fetchJobs(updatedJobs[0]?.id);
     showToast("Job deleted.", "danger");
   } catch (err) {
-    setJobError(
-      err.response?.data?.message || "Failed to delete job"
-    );
+    setJobError(getApiErrorMessage(err, "Failed to delete job"));
   }
 }
 
@@ -781,9 +773,7 @@ function App() {
         resetProfileForm();
       } else {
         setProfile(null);
-        setProfileError(
-          err.response?.data?.message || "Failed to fetch profile"
-        );
+        setProfileError(getApiErrorMessage(err, "Failed to fetch profile"));
       }
     }
   }
@@ -814,7 +804,7 @@ function App() {
       showToast("Profile saved.");
       await fetchJobs(selectedJob?.id);
     } catch (err) {
-      setProfileError(err.response?.data?.message || "Failed to create profile");
+      setProfileError(getApiErrorMessage(err, "Failed to create profile"));
     }
   }
 
@@ -833,7 +823,7 @@ function App() {
       fetchProfileSections(response.data.id);
       showToast("Profile saved.");
     } catch (err) {
-      setProfileError(err.response?.data?.message || "Failed to update profile");
+      setProfileError(getApiErrorMessage(err, "Failed to update profile"));
     }
   }
 
@@ -853,7 +843,7 @@ function App() {
       setProjects(projectRes.data);
       setSkills(skillRes.data);
     } catch (err) {
-      setSectionError("Failed to fetch profile sections");
+      setSectionError(getApiErrorMessage(err, "Failed to fetch profile sections"));
     }
   }
 
@@ -862,9 +852,7 @@ function App() {
       const response = await api.get(`/api/skill/categories/${profileId}`);
       setSkillCategories(response.data);
     } catch (err) {
-      setSectionError(
-        err.response?.data?.message || "Failed to fetch skill categories"
-      );
+      setSectionError(getApiErrorMessage(err, "Failed to fetch skill categories"));
     }
   }
 
@@ -890,7 +878,7 @@ function App() {
       });
       setSkills(response.data);
     } catch (err) {
-      setSectionError(err.response?.data?.message || "Failed to search skills");
+      setSectionError(getApiErrorMessage(err, "Failed to search skills"));
     }
   }
 
@@ -1029,9 +1017,9 @@ function App() {
       }
       await fetchJobs(selectedJob?.id);
     } catch (err) {
-      setSectionError(
-        err.response?.data?.message || `Failed to add ${sectionAddType}`
-      );
+      const errorMessage = getApiErrorMessage(err, `Failed to add ${sectionAddType}`);
+      setSectionError(errorMessage);
+      showErrorToast(errorMessage);
     }
   }
 
@@ -1063,9 +1051,9 @@ function App() {
         `Imported ${response.data.successCount} skills, failed ${response.data.failedCount} rows.`
       );
     } catch (err) {
-      setSectionError(
-        err.response?.data?.message || "Failed to import skills CSV"
-      );
+      const errorMessage = getApiErrorMessage(err, "Failed to import skills CSV");
+      setSectionError(errorMessage);
+      showErrorToast(errorMessage);
     }
   }
 
@@ -1091,9 +1079,9 @@ function App() {
       await fetchJobs(selectedJob?.id);
       showToast(`${getSectionLabel(profileTab)} saved.`);
     } catch (err) {
-      setSectionError(
-        err.response?.data?.message || `Failed to update ${profileTab}`
-      );
+      const errorMessage = getApiErrorMessage(err, `Failed to update ${profileTab}`);
+      setSectionError(errorMessage);
+      showErrorToast(errorMessage);
     }
   }
 
