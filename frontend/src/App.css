@@ -193,7 +193,7 @@ input:focus {
 .profile-modal {
   width: 100%;
   max-width: 520px;
-  max-height: 85vh;
+  max-height: min(90vh, 1140px);
   overflow-y: auto;
   background: white;
   border-radius: 20px;
@@ -203,12 +203,22 @@ input:focus {
 }
 
 .close-button {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  border: none;
-  background: transparent;
-  font-size: 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  align-self: flex-end;
+  margin: -14px -14px 0 auto;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d7e5f4;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(30, 64, 120, 0.2);
+  font-size: 32px;
+  line-height: 1;
   cursor: pointer;
   color: #1f4e79;
 }
@@ -341,13 +351,18 @@ select {
 .large-modal {
   max-width: 920px;
   width: 92vw;
-  min-height: 750px;
+  height: min(1125px, 88vh);
+  max-height: min(1125px, 88vh);
+  overflow: visible;
 }
 
 .profile-modal-layout {
   display: grid;
   grid-template-columns: 180px 1fr;
   gap: 24px;
+  min-height: 0;
+  max-height: calc(90vh - 76px);
+  overflow: hidden;
 }
 
 .profile-sidebar {
@@ -355,7 +370,9 @@ select {
   flex-direction: column;
   gap: 10px;
   border-right: 1px solid #d7e5f4;
+  padding-top: 28px;
   padding-right: 18px;
+  overflow-y: auto;
 }
 
 .profile-sidebar button {
@@ -377,6 +394,9 @@ select {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 10px;
 }
 
 .section-list {
@@ -913,6 +933,9 @@ label {
 .create-job-modal {
   max-width: 960px;
   width: min(960px, calc(100vw - 48px));
+  height: min(88vh, 1140px);
+  max-height: min(88vh, 1140px);
+  overflow-y: auto;
 }
 
 .create-job-modal .job-detail-heading {
@@ -1360,26 +1383,44 @@ label {
 }
 
 .close-button {
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   border-radius: 999px;
-  font-size: 24px;
+  font-size: 32px;
 }
 
 .close-button:hover {
   background: #edf3f8;
+  transform: translateY(-1px);
 }
 
 .large-modal {
-  min-height: min(750px, 88vh);
+  height: min(1125px, 88vh);
+  max-height: min(1125px, 88vh);
+  overflow: visible;
+}
+
+.large-modal > .close-button {
+  position: absolute;
+  top: -18px;
+  right: -18px;
+  margin: 0;
 }
 
 .profile-modal-layout {
   grid-template-columns: 176px minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(min(1125px, 88vh) - 56px);
+  max-height: calc(min(1125px, 88vh) - 56px);
+  overflow: hidden;
 }
 
 .profile-sidebar {
   border-right: 1px solid var(--border);
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 32px;
 }
 
 .profile-sidebar button {
@@ -1395,6 +1436,10 @@ label {
 
 .profile-content {
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 10px;
+  padding-bottom: 24px;
 }
 
 .profile-content > h2,
@@ -1583,6 +1628,11 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .profile-modal-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
   .job-list-panel,
   .job-detail-panel,
   .resume-preview-panel {
@@ -1644,13 +1694,27 @@ label {
   }
 
   .profile-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    padding-top: 14px;
     padding-right: 0;
     padding-bottom: 14px;
+    background: #ffffff;
   }
 
   .profile-sidebar button {
+    flex: 0 0 auto;
     text-align: center;
+  }
+
+  .profile-content {
+    overflow-y: auto;
+    padding-right: 0;
   }
 }

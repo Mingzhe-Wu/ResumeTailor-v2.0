@@ -1363,11 +1363,9 @@ function App() {
         {showJobModal && (
           <div
             className="modal-overlay"
-            onClick={() => setShowJobModal(false)}
           >
             <div
               className="profile-modal create-job-modal"
-              onClick={(e) => e.stopPropagation()}
             >
               <button
                 className="close-button"
@@ -1504,11 +1502,9 @@ function App() {
         {showProfileModal && (
           <div
             className="modal-overlay"
-            onClick={() => setShowProfileModal(false)}
           >
             <div
               className="profile-modal large-modal"
-              onClick={(e) => e.stopPropagation()}
             >
               <button
                 className="close-button"
@@ -1594,11 +1590,9 @@ function App() {
         {showSectionAddModal && (
           <div
             className="modal-overlay"
-            onClick={() => setShowSectionAddModal(false)}
           >
             <div
               className="profile-modal"
-              onClick={(e) => e.stopPropagation()}
             >
               <button
                 className="close-button"
