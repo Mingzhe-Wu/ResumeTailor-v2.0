@@ -14,6 +14,26 @@ const TOAST_EXIT_MS = 140;
 const RESUME_METHOD_NORMAL = "NORMAL";
 const RESUME_METHOD_RAG = "RAG";
 
+function ResumeGenerationHelp({ className = "" }) {
+  return (
+    <div className={`resume-method-help ${className}`.trim()}>
+      <button
+        type="button"
+        className="resume-method-help-trigger"
+        aria-label="How to choose resume generation mode"
+      >
+        ?
+      </button>
+      <div className="resume-method-tooltip" role="tooltip">
+        <strong>Normal</strong>
+        <p>Better when you want AI to reshape your profile around a role direction.</p>
+        <strong>RAG</strong>
+        <p>Better when your profile already has many detailed bullets and you want stricter JD-matching from existing evidence.</p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [user, setUser] = useState(() => {
@@ -1191,7 +1211,10 @@ function App() {
   if (token) {
     return (
       <div className="dashboard-page">
-        <div className="top-greeting">Hi, {greetingName}</div>
+        <div className="top-greeting-row">
+          <div className="top-greeting">Hi, {greetingName}</div>
+          <ResumeGenerationHelp className="greeting-help" />
+        </div>
 
         <div className="top-right">
           <button className="email-button" onClick={openProfileModal}>
@@ -1424,7 +1447,6 @@ function App() {
                   >
                     Delete Job
                   </button>
-
                 </div>
               </div>
             ) : (

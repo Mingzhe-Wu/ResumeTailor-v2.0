@@ -53,6 +53,9 @@ public class ResumeService {
 
     private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
 
+    private static final int EXP_AND_PROJECT_TOP_K = 11;
+    private static final int SKILL_TOP_K = 5;
+
     public ResumeService(
             JobMapper jobMapper,
             ProfileMapper profileMapper,
@@ -254,8 +257,8 @@ public class ResumeService {
                 semanticRetrievalService.retrieveResumeRelevantChunks(
                         userId,
                         job.getJobDescription(),
-                        5,
-                        10
+                        SKILL_TOP_K,
+                        EXP_AND_PROJECT_TOP_K
                 );
 
         int skillChunkCount = retrievalResult.getSkills() == null ? 0 : retrievalResult.getSkills().size();
@@ -842,52 +845,59 @@ public class ResumeService {
 
         sb.append("""
                 RAG Resume Generation Policy:
+                
+                Source of Truth:
                 - The Candidate Resume Context is the only source of truth for the candidate's background.
                 - Do not fabricate employers, job titles, dates, education, projects, skills, technologies, metrics, certifications, awards, or experience.
-                - For experience and project sections, preserve the provided bullet point structure from the Candidate Resume Context.
-                - Do not split one provided bullet into multiple bullets.
-                - Do not merge multiple provided bullets into one bullet unless they are clearly redundant and the final resume would otherwise be repetitive.
-                - Do not create new experience or project bullets that are not grounded in a provided bullet.
-                - You may lightly rewrite or shorten each provided bullet for clarity, grammar, concision, and target-role relevance.
-                - You may remove minor nonessential details from a bullet, but do not change its core meaning, scope, technologies, metrics, or accomplishment.
-                - Every generated bullet must be grounded in the Candidate Resume Context.
-                - Do not introduce new technical claims that are not supported by the Candidate Resume Context.
-                - Prefer omission over exaggeration.
-                - Keep the resume realistic for a strong new graduate software engineering candidate.
-                - The retrieved experience and project bullets are already relevance-filtered, so do not over-optimize by inventing new content.
                 - Use the target job description only to decide wording, ordering, emphasis, and skill selection.
-                - The final number of experience/project bullets should generally match the number of provided relevant bullets, unless omission is necessary for concision.
+                - Do not introduce new technical claims that are not supported by the Candidate Resume Context.
+                
+                RAG Evidence Usage:
+                - The experience and project bullets in the Candidate Resume Context are the selected RAG evidence set, not a broad raw profile dump.
+                - The retrieval step has already selected the most relevant experience/project evidence for this target job.
+                - In general, include most of the provided experience/project bullets in the final resume.
+                - Do not perform broad re-selection from the provided evidence.
+                - Do not replace provided bullets with newly invented bullets.
+                - Do not create new experience/project bullets that are not traceable to provided bullets.
+                - You may omit a provided experience/project bullet only if it is clearly redundant, very low-value, or impossible to fit concisely.
+                - If length is an issue, shorten bullet wording before removing retrieved evidence.
+                - If omission is necessary, omit the least relevant or most repetitive provided bullet.
+                
+                Bullet Editing:
+                - You may lightly rewrite, shorten, and polish provided bullets for clarity, grammar, concision, and target-role relevance.
+                - Do not split one provided bullet into multiple bullets.
+                - Do not merge multiple provided bullets unless they are nearly duplicate.
+                - Each generated experience/project bullet should correspond to one provided bullet whenever possible.
+                - Do not change the core meaning, scope, technologies, systems, metrics, or accomplishment of a provided bullet.
+                - Preserve concrete numbers, technologies, systems, workflows, domains, and outcomes when they are present and useful.
+                - Keep claims realistic for a strong new graduate software engineering candidate.
                 
                 Writing Style:
                 - Write concise, technically dense, engineering-oriented bullet points.
-                - Keep most bullets around 20-35 words.
+                - Keep most bullets around 20-35 words when possible.
                 - Use strong action verbs such as Developed, Built, Designed, Implemented, Automated, Integrated, Diagnosed, Refined, and Debugged.
                 - Use past tense for completed work.
-                - Prefer implementation details, debugging, workflows, APIs, persistence, automation, testing, integration, and operational behavior.
+                - Prefer implementation details, debugging, workflows, APIs, persistence, automation, validation, integration, and operational behavior.
                 - Avoid weak phrases such as Responsible for, Worked on, Helped with, Assisted with, or Participated in.
                 - Avoid excessive buzzwords, keyword stuffing, and mechanically stacking too many technologies into one bullet.
-                - Prefer natural engineering language commonly used in real production environments.
                 
-                Length and Content Selection:
-                - Keep the resume concise and one-page friendly.
-                - The retrieved experience and project bullets are already relevance-filtered.
-                - Include the provided experience and project bullets unless they are clearly redundant, too repetitive, or impossible to fit in a concise one-page resume.
-                - If omitting a retrieved bullet, prefer omitting the least relevant or most repetitive one.
-                - Do not replace omitted bullets with invented content.
-                - Do not force every retrieved bullet into the final resume if it becomes repetitive.
-                - Do not exceed the existing renderer/schema expectations.
-                - Summary is optional and should be 1-2 lines if included.
-                - Prefer fewer, stronger, information-dense bullets over many repetitive bullets.
+                Length:
+                - Optimize for a one-page software engineering resume.
+                - Because RAG already selected a compact evidence set, do not aggressively delete retrieved experience/project bullets.
+                - Prefer shortening summary, education details, coursework, skills, and bullet wording before removing retrieved experience/project evidence.
+                - Summary is optional and should be omitted or limited to 1-2 lines if space is needed.
+                - Keep the final resume concise, but preserve the selected technical evidence whenever possible.
                 
                 Skills:
                 - Curate the Skills section based on the target job description.
+                - Skills are retrieved at category level, so they should be filtered more than experience/project bullets.
                 - Do not list every skill from the Candidate Resume Context.
                 - Select only the most relevant skills from the provided skill categories.
                 - Include at most 5 skill categories.
-                - Include approximately 15-20 highly relevant technical skills total.
+                - Include approximately 12-18 highly relevant technical skills total.
                 - Remove outdated, redundant, generic, or low-value skills.
-                - Prefer skills that are directly supported by the Candidate Resume Context and useful for the target job.
-                - Skill category names may be reorganized if it improves clarity.
+                - You may reorganize skill category names if it improves clarity.
+                - You may move important skills out of a low-value category into a better category.
                 - Do not invent skills not present in the Candidate Resume Context.
                 
                 """);
@@ -1097,6 +1107,10 @@ public class ResumeService {
 
         sb.append("""
                 Final Reminder:
+                Use the Candidate Resume Context as the only source of candidate facts.
+                Experience and project bullets should be selected, rewritten, compressed, or merged only from the provided retrieved evidence.
+                Do not invent or add unsupported candidate details.
+                Skills may be curated and reorganized, but must come from the Candidate Resume Context.
                 Output only the JSON object.
                 Do not include Markdown, commentary, explanations, or plain resume text.
                 The response must be valid JSON and directly parseable by Jackson ObjectMapper.
