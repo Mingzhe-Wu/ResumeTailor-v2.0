@@ -4,6 +4,7 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkService;
 import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +21,13 @@ public class ProjectService {
     private final ProfileMapper profileMapper;
     private final ResumeMapper resumeMapper;
 
-    public ProjectService(ProjectMapper projectMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper) {
+    private final ProfileEmbeddingChunkService profileEmbeddingChunkService;
+
+    public ProjectService(ProjectMapper projectMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper, ProfileEmbeddingChunkService profileEmbeddingChunkService) {
         this.projectMapper = projectMapper;
         this.profileMapper = profileMapper;
         this.resumeMapper = resumeMapper;
+        this.profileEmbeddingChunkService = profileEmbeddingChunkService;
     }
 
     public Project createProject(CreateProjectDTO request) {
@@ -47,6 +51,12 @@ public class ProjectService {
 
         projectMapper.insert(project);
         resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+
+        profileEmbeddingChunkService.syncProjectChunks(
+                profile.getUserId(),
+                project.getId(),
+                request.getDescription());
+
         return project;
     }
 
@@ -86,9 +96,19 @@ public class ProjectService {
 
         projectMapper.updateById(update);
         Profile profile = profileMapper.findById(existingProject.getProfileId());
+
         if (profile != null) {
             resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+
+            // If corresponding description (bullet point) changed
+            if (request.getDescription() != null) {
+                profileEmbeddingChunkService.syncProjectChunks(
+                        profile.getUserId(),
+                        existingProject.getId(),
+                        request.getDescription());
+            }
         }
+
         return projectMapper.findById(id);
     }
 
@@ -102,6 +122,7 @@ public class ProjectService {
         Profile profile = profileMapper.findById(existingProject.getProfileId());
         if (profile != null) {
             resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+            profileEmbeddingChunkService.deleteProjectChunks(profile.getUserId(), id);
         }
     }
 

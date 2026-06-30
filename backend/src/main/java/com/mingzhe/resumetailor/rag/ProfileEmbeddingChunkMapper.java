@@ -1,0 +1,110 @@
+package com.mingzhe.resumetailor.rag;
+
+import org.apache.ibatis.annotations.*;
+
+import java.util.List;
+
+@Mapper
+public interface ProfileEmbeddingChunkMapper {
+
+    @Insert("""
+        INSERT INTO profile_embedding_chunks (
+            user_id,
+            source_type,
+            source_id,
+            content_text,
+            embedding_model,
+            embedding_status
+        ) VALUES (
+            #{userId},
+            CAST(#{sourceType} AS embedding_source_type),
+            #{sourceId},
+            #{contentText},
+            #{embeddingModel},
+            CAST(#{embeddingStatus} AS embedding_status)
+        )
+        """)
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    int insert(ProfileEmbeddingChunk chunk);
+
+    @Select("""
+        SELECT
+            id,
+            user_id,
+            source_type,
+            source_id,
+            content_text,
+            embedding_model,
+            embedding_status,
+            created_at,
+            updated_at
+        FROM profile_embedding_chunks
+        WHERE id = #{id}
+        """)
+    ProfileEmbeddingChunk findById(Long id);
+
+    @Select("""
+        SELECT
+            id,
+            user_id,
+            source_type,
+            source_id,
+            content_text,
+            embedding_model,
+            embedding_status,
+            created_at,
+            updated_at
+        FROM profile_embedding_chunks
+        WHERE user_id = #{userId}
+        """)
+    List<ProfileEmbeddingChunk> findByUserId(Long userId);
+
+    @Select("""
+        SELECT
+            id,
+            user_id,
+            source_type,
+            source_id,
+            content_text,
+            embedding_model,
+            embedding_status,
+            created_at,
+            updated_at
+        FROM profile_embedding_chunks
+        WHERE user_id = #{userId}
+          AND embedding_status = CAST(#{embeddingStatus} AS embedding_status)
+        """)
+    List<ProfileEmbeddingChunk> findByUserIdAndStatus(
+            @Param("userId") Long userId,
+            @Param("embeddingStatus") EmbeddingStatus embeddingStatus
+    );
+
+    @Delete("""
+        DELETE FROM profile_embedding_chunks
+        WHERE user_id = #{userId}
+          AND source_type = CAST(#{sourceType} AS embedding_source_type)
+          AND source_id = #{sourceId}
+        """)
+    int deleteByUserAndSource(
+            @Param("userId") Long userId,
+            @Param("sourceType") EmbeddingSourceType sourceType,
+            @Param("sourceId") Long sourceId
+    );
+
+    @Update("""
+        <script>
+        UPDATE profile_embedding_chunks
+        <set>
+            <if test="embeddingModel != null">
+                embedding_model = #{embeddingModel},
+            </if>
+            <if test="embeddingStatus != null">
+                embedding_status = CAST(#{embeddingStatus} AS embedding_status),
+            </if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+        </script>
+        """)
+    int updateById(ProfileEmbeddingChunk chunk);
+}

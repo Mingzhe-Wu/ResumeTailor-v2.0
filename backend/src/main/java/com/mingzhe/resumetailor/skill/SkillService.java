@@ -4,7 +4,9 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkService;
 import com.mingzhe.resumetailor.resume.ResumeMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,10 +26,13 @@ public class SkillService {
     private final ProfileMapper profileMapper;
     private final ResumeMapper resumeMapper;
 
-    public SkillService(SkillMapper skillMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper) {
+    private final ProfileEmbeddingChunkService profileEmbeddingChunkService;
+
+    public SkillService(SkillMapper skillMapper, ProfileMapper profileMapper, ResumeMapper resumeMapper, ProfileEmbeddingChunkService profileEmbeddingChunkService) {
         this.skillMapper = skillMapper;
         this.profileMapper = profileMapper;
         this.resumeMapper = resumeMapper;
+        this.profileEmbeddingChunkService = profileEmbeddingChunkService;
     }
 
     public Skill createSkill(CreateSkillDTO request) {
@@ -41,8 +46,12 @@ public class SkillService {
         skill.setCategory(request.getCategory());
         skill.setName(request.getName());
 
-        skillMapper.insert(skill);
+        if (skillMapper.insert(skill) == 0) {
+            throw new BadRequestException("Skill already exists.");
+        }
         resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+
+        profileEmbeddingChunkService.syncSkillChunks(profile.getUserId(), profile.getId());
         return skill;
     }
 
@@ -88,10 +97,16 @@ public class SkillService {
         update.setCategory(request.getCategory());
         update.setName(request.getName());
 
-        skillMapper.updateById(update);
+        try{
+            skillMapper.updateById(update);
+        } catch (DuplicateKeyException e) {
+            throw new BadRequestException("Skill already exists.");
+        }
+
         Profile profile = profileMapper.findById(existingSkill.getProfileId());
         if (profile != null) {
             resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+            profileEmbeddingChunkService.syncSkillChunks(profile.getUserId(), profile.getId());
         }
         return skillMapper.findById(id);
     }
@@ -106,6 +121,7 @@ public class SkillService {
         Profile profile = profileMapper.findById(existingSkill.getProfileId());
         if (profile != null) {
             resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+            profileEmbeddingChunkService.syncSkillChunks(profile.getUserId(), profile.getId());
         }
     }
 
@@ -164,8 +180,12 @@ public class SkillService {
                 skill.setName(name);
 
                 try {
-                    skillMapper.insert(skill);
+                    if (skillMapper.insert(skill) == 0) {
+                        throw new BadRequestException("Skill already exists.");
+                    }
                     successCount++;
+                } catch (BadRequestException ex) {
+                    throw ex;
                 } catch (RuntimeException ex) {
                     failedCount++;
                 }
@@ -176,6 +196,11 @@ public class SkillService {
 
         if (successCount > 0) {
             resumeMapper.markResumeDirtyByUserId(profile.getUserId());
+
+            profileEmbeddingChunkService.syncSkillChunks(
+                    profile.getUserId(),
+                    profile.getId()
+            );
         }
 
         return new SkillImportResponseDTO(successCount, failedCount);

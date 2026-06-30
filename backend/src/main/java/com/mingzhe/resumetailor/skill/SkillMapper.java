@@ -26,6 +26,7 @@ public interface SkillMapper {
             #{category},
             #{name}
         )
+        ON CONFLICT (profile_id, category, name) DO NOTHING
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(Skill skill);
@@ -72,7 +73,7 @@ public interface SkillMapper {
           AND name ILIKE '%' || #{name} || '%'
         </if>
         <if test="category != null and category.trim() != ''">
-          AND category ILIKE '%' || #{category} || '%'
+          AND category = #{category}
         </if>
         ORDER BY id DESC
         </script>
