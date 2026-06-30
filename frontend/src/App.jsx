@@ -192,6 +192,40 @@ function App() {
     }
   };
 
+  const handleGenerateResumeWithRag = async (jobId) => {
+    const confirmed = window.confirm(
+      "Generate a RAG-tailored resume for this job? This may overwrite or replace the existing generated resume."
+    );
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      setMessage("");
+      setResumePanelError("");
+      setResumePanelMessage("");
+      setResumeLoading(true);
+      setGeneratingJobId(jobId);
+
+      await api.post(`/api/resume/generate-rag/${jobId}`);
+
+      await fetchResumeForJob(jobId);
+      showToast("RAG resume generated successfully.");
+    } catch (err) {
+      const backendMessage = getApiErrorMessage(err, "Failed to generate RAG resume.");
+      if (backendMessage === "Resume is already up to date.") {
+        showToast(backendMessage, "danger");
+        setResumePanelMessage(backendMessage);
+        fetchResumeForJob(jobId, true);
+      } else {
+        showErrorToast(backendMessage);
+        setResumePanelError(backendMessage);
+      }
+    } finally {
+      setResumeLoading(false);
+      setGeneratingJobId(null);
+    }
+  };
+
   const pollGeneratedResume = (jobId) => {
     const intervalId = setInterval(async () => {
       try {
@@ -1202,16 +1236,26 @@ function App() {
                     <h2>Edit Job Detail</h2>
                     <p>{selectedJob.company || "Company"} | {statusMap[selectedJob.status] || "Unknown"}</p>
                   </div>
-                  <button
-                    type="button"
-                    className="primary-button generate-heading-button"
-                    onClick={() => handleGenerateResume(selectedJob.id)}
-                    disabled={generatingJobId === selectedJob.id}
-                  >
-                    {generatingJobId === selectedJob.id
-                      ? "Generating..."
-                      : "Generate Resume"}
-                  </button>
+                  <div className="generate-heading-actions">
+                    <button
+                      type="button"
+                      className="primary-button generate-heading-button"
+                      onClick={() => handleGenerateResume(selectedJob.id)}
+                      disabled={generatingJobId === selectedJob.id}
+                    >
+                      {generatingJobId === selectedJob.id
+                        ? "Generating..."
+                        : "Generate Resume"}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button generate-heading-button"
+                      onClick={() => handleGenerateResumeWithRag(selectedJob.id)}
+                      disabled={generatingJobId === selectedJob.id}
+                    >
+                      Generate with RAG
+                    </button>
+                  </div>
                 </div>
 
                 {jobError && <p className="error-text">{jobError}</p>}

@@ -945,7 +945,7 @@ label {
 
 .job-detail-heading {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr) 170px;
+  grid-template-columns: 210px minmax(0, 1fr) 210px;
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 18px;
@@ -959,10 +959,17 @@ label {
 }
 
 .generate-heading-button {
-  grid-column: 3;
-  justify-self: end;
   min-width: 150px;
   margin-top: 0;
+}
+
+.generate-heading-actions {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-self: end;
+  gap: 8px;
 }
 
 .job-detail-heading h2 {
@@ -1672,9 +1679,14 @@ label {
   }
 
   .job-detail-heading > div,
-  .generate-heading-button {
+  .generate-heading-actions {
     grid-column: 1;
     justify-self: center;
+  }
+
+  .generate-heading-actions {
+    width: 100%;
+    max-width: 360px;
   }
 
   .job-field-grid {

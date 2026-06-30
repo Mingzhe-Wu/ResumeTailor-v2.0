@@ -46,6 +46,11 @@ public class ResumeController {
         return ResponseEntity.ok(resumeService.generateResume(jobId));
     }
 
+    @PostMapping("/generate-rag/{jobId}")
+    public ResponseEntity<String> generateResumeWithRag(@PathVariable Long jobId) {
+        return ResponseEntity.ok(resumeService.generateResumeWithRag(jobId));
+    }
+
     @PostMapping("/generate-async/{jobId}")
     public ResponseEntity<String> generateResumeAsync(@PathVariable Long jobId) {
         resumeService.ensureGenerationAllowed(jobId);

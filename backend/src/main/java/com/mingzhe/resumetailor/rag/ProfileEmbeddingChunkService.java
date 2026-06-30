@@ -2,6 +2,12 @@ package com.mingzhe.resumetailor.rag;
 
 import com.mingzhe.resumetailor.skill.Skill;
 import com.mingzhe.resumetailor.skill.SkillMapper;
+import com.mingzhe.resumetailor.experience.Experience;
+import com.mingzhe.resumetailor.experience.ExperienceMapper;
+import com.mingzhe.resumetailor.profile.Profile;
+import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.project.Project;
+import com.mingzhe.resumetailor.project.ProjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,11 +21,24 @@ public class ProfileEmbeddingChunkService {
     private final BulletChunkParser bulletChunkParser;
 
     private final SkillMapper skillMapper;
+    private final ProfileMapper profileMapper;
+    private final ExperienceMapper experienceMapper;
+    private final ProjectMapper projectMapper;
 
-    public ProfileEmbeddingChunkService(ProfileEmbeddingChunkMapper profileEmbeddingChunkMapper, BulletChunkParser bulletChunkParser, SkillMapper skillMapper) {
+    public ProfileEmbeddingChunkService(
+            ProfileEmbeddingChunkMapper profileEmbeddingChunkMapper,
+            BulletChunkParser bulletChunkParser,
+            SkillMapper skillMapper,
+            ProfileMapper profileMapper,
+            ExperienceMapper experienceMapper,
+            ProjectMapper projectMapper
+    ) {
         this.profileEmbeddingChunkMapper = profileEmbeddingChunkMapper;
         this.bulletChunkParser = bulletChunkParser;
         this.skillMapper = skillMapper;
+        this.profileMapper = profileMapper;
+        this.experienceMapper = experienceMapper;
+        this.projectMapper = projectMapper;
     }
 
     // Inserting or updating bullet chunks for given user and source
@@ -116,6 +135,40 @@ public class ProfileEmbeddingChunkService {
 
             profileEmbeddingChunkMapper.insert(chunk);
         }
+    }
+
+    @Transactional
+    public void syncAllProfileChunks(Long userId) {
+        Profile profile = profileMapper.findByUserId(userId);
+        if (profile == null || profile.getId() == null) {
+            return;
+        }
+
+        List<Experience> experiences = experienceMapper.findByProfileId(profile.getId());
+        if (experiences != null) {
+            for (Experience experience : experiences) {
+                syncBulletChunks(
+                        userId,
+                        EmbeddingSourceType.EXPERIENCE,
+                        experience.getId(),
+                        experience.getDescription()
+                );
+            }
+        }
+
+        List<Project> projects = projectMapper.findByProfileId(profile.getId());
+        if (projects != null) {
+            for (Project project : projects) {
+                syncBulletChunks(
+                        userId,
+                        EmbeddingSourceType.PROJECT,
+                        project.getId(),
+                        project.getDescription()
+                );
+            }
+        }
+
+        syncSkillChunks(userId, profile.getId());
     }
 
 }

@@ -17,6 +17,10 @@ import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
 import com.mingzhe.resumetailor.project.Project;
 import com.mingzhe.resumetailor.project.ProjectMapper;
+import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkService;
+import com.mingzhe.resumetailor.rag.ResumeContextBuilderService;
+import com.mingzhe.resumetailor.rag.ResumeRetrievalResultDTO;
+import com.mingzhe.resumetailor.rag.SemanticRetrievalService;
 import com.mingzhe.resumetailor.skill.Skill;
 import com.mingzhe.resumetailor.skill.SkillMapper;
 import org.slf4j.Logger;
@@ -43,10 +47,27 @@ public class ResumeService {
 
     private final OpenAiResumeService openAiResumeService;
     private final ChunkEmbeddingService  chunkEmbeddingService;
+    private final ProfileEmbeddingChunkService profileEmbeddingChunkService;
+    private final SemanticRetrievalService semanticRetrievalService;
+    private final ResumeContextBuilderService resumeContextBuilderService;
 
     private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
 
-    public ResumeService(JobMapper jobMapper, ProfileMapper profileMapper, ExperienceMapper experienceMapper, EducationMapper educationMapper, ProjectMapper projectMapper, SkillMapper skillMapper, ResumeMapper resumeMapper, ObjectMapper objectMapper, OpenAiResumeService openAiResumeService, ChunkEmbeddingService chunkEmbeddingService) {
+    public ResumeService(
+            JobMapper jobMapper,
+            ProfileMapper profileMapper,
+            ExperienceMapper experienceMapper,
+            EducationMapper educationMapper,
+            ProjectMapper projectMapper,
+            SkillMapper skillMapper,
+            ResumeMapper resumeMapper,
+            ObjectMapper objectMapper,
+            OpenAiResumeService openAiResumeService,
+            ChunkEmbeddingService chunkEmbeddingService,
+            ProfileEmbeddingChunkService profileEmbeddingChunkService,
+            SemanticRetrievalService semanticRetrievalService,
+            ResumeContextBuilderService resumeContextBuilderService
+    ) {
         this.jobMapper = jobMapper;
         this.profileMapper = profileMapper;
         this.experienceMapper = experienceMapper;
@@ -57,6 +78,9 @@ public class ResumeService {
         this.objectMapper = objectMapper;
         this.openAiResumeService = openAiResumeService;
         this.chunkEmbeddingService = chunkEmbeddingService;
+        this.profileEmbeddingChunkService = profileEmbeddingChunkService;
+        this.semanticRetrievalService = semanticRetrievalService;
+        this.resumeContextBuilderService = resumeContextBuilderService;
     }
 
     public Resume createResume(CreateResumeDTO request) {
@@ -156,11 +180,6 @@ public class ResumeService {
         ResumeGenerationContext context = fetchResumeContext(jobId);
         ensureGenerationAllowed(jobId);
 
-        Long userId = context.getProfile().getUserId();
-
-        log.info("Chunk Embedding generation started for jobId={}", jobId);
-        chunkEmbeddingService.embedPendingChunksByUserId(userId);
-
         // build structured prompt for calling OpenAI api with the context
         String prompt = buildPrompt(context);
 
@@ -192,6 +211,79 @@ public class ResumeService {
         }
 
         return "Resume Generated";
+    }
+
+    public String generateResumeWithRag(Long jobId) {
+        Job job = jobMapper.findById(jobId);
+        if (job == null) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        ensureGenerationAllowed(jobId);
+
+        Long userId = job.getUserId();
+        if (userId == null) {
+            throw new BadRequestException("Job user id is missing.");
+        }
+
+        if (!hasText(job.getJobDescription())) {
+            throw new BadRequestException("Job description cannot be blank for RAG resume generation.");
+        }
+
+        log.info("RAG resume generation started for jobId={}, userId={}", jobId, userId);
+        profileEmbeddingChunkService.syncAllProfileChunks(userId);
+        chunkEmbeddingService.embedPendingChunksByUserId(userId);
+
+        ResumeRetrievalResultDTO retrievalResult =
+                semanticRetrievalService.retrieveResumeRelevantChunks(
+                        userId,
+                        job.getJobDescription(),
+                        5,
+                        10
+                );
+
+        int skillChunkCount = retrievalResult.getSkills() == null ? 0 : retrievalResult.getSkills().size();
+        int evidenceChunkCount = retrievalResult.getExperienceAndProjects() == null
+                ? 0
+                : retrievalResult.getExperienceAndProjects().size();
+
+        log.info("RAG retrieval completed for jobId={}, skillChunks={}, experienceProjectChunks={}",
+                jobId, skillChunkCount, evidenceChunkCount);
+
+        if (skillChunkCount == 0 && evidenceChunkCount == 0) {
+            throw new BadRequestException("No relevant resume chunks found for this job.");
+        }
+
+        String resumeContext = resumeContextBuilderService.buildResumeContext(userId, retrievalResult, false);
+        log.info("RAG resume context for jobId={}:\n{}", jobId, resumeContext);
+
+        String prompt = buildRagPrompt(job, resumeContext);
+        String aiResponse = callLlmWithRetry(prompt);
+
+        Resume resume = new Resume();
+        resume.setJobId(jobId);
+        resume.setMatchScore(null);
+        resume.setNeedGenerate(false);
+
+        String json;
+        try {
+            JsonNode node = objectMapper.readTree(aiResponse);
+            json = objectMapper.writeValueAsString(node);
+            resume.setGeneratedContent(json);
+        } catch (JsonProcessingException e) {
+            throw new BadRequestException("AI returned invalid resume JSON");
+        }
+
+        Resume existingResume = resumeMapper.findByJobId(jobId);
+
+        if (existingResume == null) {
+            resumeMapper.insert(resume);
+        } else {
+            resume.setId(existingResume.getId());
+            resumeMapper.updateById(resume);
+        }
+
+        return "RAG Resume Generated";
     }
 
     public void ensureGenerationAllowed(Long jobId) {
@@ -724,13 +816,19 @@ public class ResumeService {
                 RAG Resume Generation Policy:
                 - The Candidate Resume Context is the only source of truth for the candidate's background.
                 - Do not fabricate employers, job titles, dates, education, projects, skills, technologies, metrics, certifications, awards, or experience.
-                - You may rewrite, compress, merge, and polish the provided bullet points for clarity, relevance, and impact.
+                - For experience and project sections, preserve the provided bullet point structure from the Candidate Resume Context.
+                - Do not split one provided bullet into multiple bullets.
+                - Do not merge multiple provided bullets into one bullet unless they are clearly redundant and the final resume would otherwise be repetitive.
+                - Do not create new experience or project bullets that are not grounded in a provided bullet.
+                - You may lightly rewrite or shorten each provided bullet for clarity, grammar, concision, and target-role relevance.
+                - You may remove minor nonessential details from a bullet, but do not change its core meaning, scope, technologies, metrics, or accomplishment.
                 - Every generated bullet must be grounded in the Candidate Resume Context.
                 - Do not introduce new technical claims that are not supported by the Candidate Resume Context.
                 - Prefer omission over exaggeration.
                 - Keep the resume realistic for a strong new graduate software engineering candidate.
                 - The retrieved experience and project bullets are already relevance-filtered, so do not over-optimize by inventing new content.
                 - Use the target job description only to decide wording, ordering, emphasis, and skill selection.
+                - The final number of experience/project bullets should generally match the number of provided relevant bullets, unless omission is necessary for concision.
                 
                 Writing Style:
                 - Write concise, technically dense, engineering-oriented bullet points.
@@ -744,7 +842,10 @@ public class ResumeService {
                 
                 Length and Content Selection:
                 - Keep the resume concise and one-page friendly.
-                - Prefer the retrieved experience and project evidence, but remove or merge redundant bullets if necessary.
+                - The retrieved experience and project bullets are already relevance-filtered.
+                - Include the provided experience and project bullets unless they are clearly redundant, too repetitive, or impossible to fit in a concise one-page resume.
+                - If omitting a retrieved bullet, prefer omitting the least relevant or most repetitive one.
+                - Do not replace omitted bullets with invented content.
                 - Do not force every retrieved bullet into the final resume if it becomes repetitive.
                 - Do not exceed the existing renderer/schema expectations.
                 - Summary is optional and should be 1-2 lines if included.
