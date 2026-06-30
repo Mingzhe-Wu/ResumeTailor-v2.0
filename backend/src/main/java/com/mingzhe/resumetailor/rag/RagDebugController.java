@@ -2,6 +2,7 @@ package com.mingzhe.resumetailor.rag;
 
 import com.mingzhe.resumetailor.job.Job;
 import com.mingzhe.resumetailor.job.JobMapper;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,13 +13,16 @@ import java.util.List;
 public class RagDebugController {
 
     private final SemanticRetrievalService semanticRetrievalService;
+    private final ResumeContextBuilderService resumeContextBuilderService;
     private final JobMapper jobMapper;
 
     public RagDebugController(
             SemanticRetrievalService semanticRetrievalService,
+            ResumeContextBuilderService resumeContextBuilderService,
             JobMapper jobMapper
     ) {
         this.semanticRetrievalService = semanticRetrievalService;
+        this.resumeContextBuilderService = resumeContextBuilderService;
         this.jobMapper = jobMapper;
     }
 
@@ -99,5 +103,33 @@ public class RagDebugController {
         }
 
         return result;
+    }
+
+    @GetMapping(value = "/api/debug/retrieval/context", produces = MediaType.TEXT_PLAIN_VALUE)
+    public String buildResumeContext(
+            @RequestParam Long userId,
+            @RequestParam Long jobId,
+            @RequestParam(defaultValue = "5") Integer skillTopK,
+            @RequestParam(defaultValue = "10") Integer evidenceTopK
+    ) {
+        Job job = jobMapper.findById(jobId);
+
+        if (job == null) {
+            throw new IllegalArgumentException("Job not found.");
+        }
+
+        ResumeRetrievalResultDTO result =
+                semanticRetrievalService.retrieveResumeRelevantChunks(
+                        userId,
+                        job.getJobDescription(),
+                        skillTopK,
+                        evidenceTopK
+                );
+
+        String context = resumeContextBuilderService.buildResumeContext(userId, result, false);
+        System.out.println("===== RESUME CONTEXT =====");
+        System.out.println(context);
+
+        return context;
     }
 }
