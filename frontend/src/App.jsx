@@ -49,6 +49,7 @@ function App() {
     const savedUser = localStorage.getItem("user");
     return savedUser ? JSON.parse(savedUser) : null;
   });
+  const [sessionValidated, setSessionValidated] = useState(() => !(token && user));
 
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -321,11 +322,53 @@ function App() {
   };
 
   useEffect(() => {
-    if (token && user) {
+    let isActive = true;
+
+    async function validateStoredSession() {
+      if (!token) {
+        setSessionValidated(true);
+        return;
+      }
+
+      if (!user?.id) {
+        logout();
+        setSessionValidated(true);
+        return;
+      }
+
+      setSessionValidated(false);
+
+      try {
+        await api.get(`/api/profile/fetch/${user.id}`);
+      } catch (err) {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          if (isActive) {
+            logout();
+            setError("Session expired. Please login again.");
+            setSessionValidated(true);
+          }
+          return;
+        }
+      }
+
+      if (isActive) {
+        setSessionValidated(true);
+      }
+    }
+
+    validateStoredSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [token, user?.id]);
+
+  useEffect(() => {
+    if (token && user && sessionValidated) {
       fetchJobs();
       fetchProfileForGreeting();
     }
-  }, [token, user]);
+  }, [token, user, sessionValidated]);
 
   useEffect(() => {
     if (!token || !user) {
@@ -1324,6 +1367,19 @@ function App() {
     displayableName(user?.fullName) ||
     user?.email ||
     "User";
+
+  if (token && !sessionValidated) {
+    return (
+      <div className="page">
+        <div className="auth-card">
+          <div className="brand-section">
+            <h1>AI Resume Tailor</h1>
+            <p>Checking your session...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (token) {
     return (
