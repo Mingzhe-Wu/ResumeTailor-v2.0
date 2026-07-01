@@ -20,6 +20,11 @@ public class OpenAiResumeService {
 
     // get api key from system environment to avoid risky behaviors
     private final String apiKey = System.getenv("OPENAI_API_KEY");
+    private static final String MODEL_NAME = "gpt-5.5";
+
+    public String getModelName() {
+        return MODEL_NAME;
+    }
 
     public String generate(String prompt) {
         try {
@@ -41,12 +46,12 @@ public class OpenAiResumeService {
 
             String body = """
             {
-              "model": "gpt-5.5",
+              "model": "%s",
               "messages": [
                 {"role": "user", "content": "%s"}
               ]
             }
-            """.formatted(safePrompt);
+            """.formatted(MODEL_NAME, safePrompt);
 
             // send request
             try (OutputStream os = conn.getOutputStream()) {

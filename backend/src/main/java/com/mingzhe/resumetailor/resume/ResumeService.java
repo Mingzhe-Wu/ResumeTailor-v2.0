@@ -9,12 +9,15 @@ import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
 import com.mingzhe.resumetailor.experience.Experience;
 import com.mingzhe.resumetailor.experience.ExperienceMapper;
+import com.mingzhe.resumetailor.generationhistory.GenerationHistoryService;
+import com.mingzhe.resumetailor.generationhistory.GenerationMethod;
 import com.mingzhe.resumetailor.job.Job;
 import com.mingzhe.resumetailor.job.JobMapper;
 import com.mingzhe.resumetailor.openai.ChunkEmbeddingService;
 import com.mingzhe.resumetailor.openai.OpenAiResumeService;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.prompttemplate.PromptTemplate;
 import com.mingzhe.resumetailor.prompttemplate.PromptTemplateService;
 import com.mingzhe.resumetailor.prompttemplate.PromptTemplateType;
 import com.mingzhe.resumetailor.project.Project;
@@ -53,6 +56,7 @@ public class ResumeService {
     private final SemanticRetrievalService semanticRetrievalService;
     private final ResumeContextBuilderService resumeContextBuilderService;
     private final PromptTemplateService promptTemplateService;
+    private final GenerationHistoryService generationHistoryService;
 
     private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
 
@@ -73,7 +77,8 @@ public class ResumeService {
             ProfileEmbeddingChunkService profileEmbeddingChunkService,
             SemanticRetrievalService semanticRetrievalService,
             ResumeContextBuilderService resumeContextBuilderService,
-            PromptTemplateService promptTemplateService
+            PromptTemplateService promptTemplateService,
+            GenerationHistoryService generationHistoryService
     ) {
         this.jobMapper = jobMapper;
         this.profileMapper = profileMapper;
@@ -89,6 +94,7 @@ public class ResumeService {
         this.semanticRetrievalService = semanticRetrievalService;
         this.resumeContextBuilderService = resumeContextBuilderService;
         this.promptTemplateService = promptTemplateService;
+        this.generationHistoryService = generationHistoryService;
     }
 
     public Resume createResume(CreateResumeDTO request) {
@@ -196,122 +202,177 @@ public class ResumeService {
     }
 
     public String generateResume(Long jobId) {
-        // fetch resume context with given job id
-        ResumeGenerationContext context = fetchResumeContext(jobId);
-        ensureGenerationAllowed(jobId);
+        Long userId = null;
+        PromptTemplate promptTemplate = null;
 
-        // build structured prompt for calling OpenAI api with the context
-        String prompt = buildPrompt(context);
-
-        // call OpenAi api up to three times to generate resume
-        String aiResponse = callLlmWithRetry(prompt);
-
-        // construct resume and save to database
-        Resume resume = new Resume();
-        resume.setJobId(jobId);
-        resume.setMatchScore(null);
-        resume.setNeedGenerate(false);
-        resume.setGenerationMethod(ResumeGenerationMethod.NORMAL);
-
-        String json;
         try {
-            JsonNode node = objectMapper.readTree(aiResponse);
-            json = objectMapper.writeValueAsString(node);
-            resume.setGeneratedContent(json);
-        } catch (JsonProcessingException e) {
-            throw new BadRequestException("AI returned invalid resume JSON");
+            // fetch resume context with given job id
+            ResumeGenerationContext context = fetchResumeContext(jobId);
+            userId = context.getJob().getUserId();
+            promptTemplate = promptTemplateService.getEffectivePrompt(userId, PromptTemplateType.NORMAL);
+            ensureGenerationAllowed(jobId);
+
+            // build structured prompt for calling OpenAI api with the context
+            String prompt = buildPrompt(context, promptTemplate);
+
+            // call OpenAi api up to three times to generate resume
+            String aiResponse = callLlmWithRetry(prompt);
+
+            // construct resume and save to database
+            Resume resume = new Resume();
+            resume.setJobId(jobId);
+            resume.setMatchScore(null);
+            resume.setNeedGenerate(false);
+            resume.setGenerationMethod(ResumeGenerationMethod.NORMAL);
+
+            String json;
+            try {
+                JsonNode node = objectMapper.readTree(aiResponse);
+                json = objectMapper.writeValueAsString(node);
+                resume.setGeneratedContent(json);
+            } catch (JsonProcessingException e) {
+                throw new BadRequestException("AI returned invalid resume JSON");
+            }
+
+            Resume existingResume = resumeMapper.findByJobIdAndGenerationMethod(
+                    jobId,
+                    ResumeGenerationMethod.NORMAL
+            );
+
+            if (existingResume == null) {
+                resumeMapper.insert(resume);
+            } else {
+                resume.setId(existingResume.getId());
+                resumeMapper.updateById(resume);
+            }
+
+            generationHistoryService.recordSuccess(
+                    userId,
+                    jobId,
+                    resume.getId(),
+                    GenerationMethod.NORMAL,
+                    promptTemplate.getId(),
+                    openAiResumeService.getModelName()
+            );
+
+            return "Resume Generated";
+        } catch (RuntimeException ex) {
+            if (userId == null) {
+                userId = findUserIdByJobId(jobId);
+            }
+            recordGenerationFailure(
+                    userId,
+                    jobId,
+                    GenerationMethod.NORMAL,
+                    promptTemplate,
+                    ex
+            );
+            throw ex;
         }
-
-        Resume existingResume = resumeMapper.findByJobIdAndGenerationMethod(
-                jobId,
-                ResumeGenerationMethod.NORMAL
-        );
-
-        if (existingResume == null) {
-            resumeMapper.insert(resume);
-        } else {
-            resume.setId(existingResume.getId());
-            resumeMapper.updateById(resume);
-        }
-
-        return "Resume Generated";
     }
 
     public String generateResumeWithRag(Long jobId) {
-        Job job = jobMapper.findById(jobId);
-        if (job == null) {
-            throw new ResourceNotFoundException("Job not found");
-        }
+        Long userId = null;
+        PromptTemplate promptTemplate = null;
 
-        ensureGenerationAllowed(jobId, ResumeGenerationMethod.RAG);
-
-        Long userId = job.getUserId();
-        if (userId == null) {
-            throw new BadRequestException("Job user id is missing.");
-        }
-
-        if (!hasText(job.getJobDescription())) {
-            throw new BadRequestException("Job description cannot be blank for RAG resume generation.");
-        }
-
-        log.info("RAG resume generation started for jobId={}, userId={}", jobId, userId);
-        profileEmbeddingChunkService.syncAllProfileChunks(userId);
-        chunkEmbeddingService.embedPendingChunksByUserId(userId);
-
-        ResumeRetrievalResultDTO retrievalResult =
-                semanticRetrievalService.retrieveResumeRelevantChunks(
-                        userId,
-                        job.getJobDescription(),
-                        SKILL_TOP_K,
-                        EXP_AND_PROJECT_TOP_K
-                );
-
-        int skillChunkCount = retrievalResult.getSkills() == null ? 0 : retrievalResult.getSkills().size();
-        int evidenceChunkCount = retrievalResult.getExperienceAndProjects() == null
-                ? 0
-                : retrievalResult.getExperienceAndProjects().size();
-
-        log.info("RAG retrieval completed for jobId={}, skillChunks={}, experienceProjectChunks={}",
-                jobId, skillChunkCount, evidenceChunkCount);
-
-        if (skillChunkCount == 0 && evidenceChunkCount == 0) {
-            throw new BadRequestException("No relevant resume chunks found for this job.");
-        }
-
-        String resumeContext = resumeContextBuilderService.buildResumeContext(userId, retrievalResult, false);
-        // log.info("RAG resume context for jobId={}:\n{}", jobId, resumeContext);
-
-        String prompt = buildRagPrompt(job, resumeContext);
-        String aiResponse = callLlmWithRetry(prompt);
-
-        Resume resume = new Resume();
-        resume.setJobId(jobId);
-        resume.setMatchScore(null);
-        resume.setNeedGenerate(false);
-        resume.setGenerationMethod(ResumeGenerationMethod.RAG);
-
-        String json;
         try {
-            JsonNode node = objectMapper.readTree(aiResponse);
-            json = objectMapper.writeValueAsString(node);
-            resume.setGeneratedContent(json);
-        } catch (JsonProcessingException e) {
-            throw new BadRequestException("AI returned invalid resume JSON");
+            Job job = jobMapper.findById(jobId);
+            if (job == null) {
+                throw new ResourceNotFoundException("Job not found");
+            }
+
+            userId = job.getUserId();
+            if (userId == null) {
+                throw new BadRequestException("Job user id is missing.");
+            }
+
+            promptTemplate = promptTemplateService.getEffectivePrompt(userId, PromptTemplateType.RAG);
+            ensureGenerationAllowed(jobId, ResumeGenerationMethod.RAG);
+
+            if (!hasText(job.getJobDescription())) {
+                throw new BadRequestException("Job description cannot be blank for RAG resume generation.");
+            }
+
+            log.info("RAG resume generation started for jobId={}, userId={}", jobId, userId);
+            profileEmbeddingChunkService.syncAllProfileChunks(userId);
+            chunkEmbeddingService.embedPendingChunksByUserId(userId);
+
+            ResumeRetrievalResultDTO retrievalResult =
+                    semanticRetrievalService.retrieveResumeRelevantChunks(
+                            userId,
+                            job.getJobDescription(),
+                            SKILL_TOP_K,
+                            EXP_AND_PROJECT_TOP_K
+                    );
+
+            int skillChunkCount = retrievalResult.getSkills() == null ? 0 : retrievalResult.getSkills().size();
+            int evidenceChunkCount = retrievalResult.getExperienceAndProjects() == null
+                    ? 0
+                    : retrievalResult.getExperienceAndProjects().size();
+
+            log.info("RAG retrieval completed for jobId={}, skillChunks={}, experienceProjectChunks={}",
+                    jobId, skillChunkCount, evidenceChunkCount);
+
+            if (skillChunkCount == 0 && evidenceChunkCount == 0) {
+                throw new BadRequestException("No relevant resume chunks found for this job.");
+            }
+
+            String resumeContext = resumeContextBuilderService.buildResumeContext(userId, retrievalResult, false);
+            // log.info("RAG resume context for jobId={}:\n{}", jobId, resumeContext);
+
+            String prompt = buildRagPrompt(job, resumeContext, promptTemplate);
+            String aiResponse = callLlmWithRetry(prompt);
+
+            Resume resume = new Resume();
+            resume.setJobId(jobId);
+            resume.setMatchScore(null);
+            resume.setNeedGenerate(false);
+            resume.setGenerationMethod(ResumeGenerationMethod.RAG);
+
+            String json;
+            try {
+                JsonNode node = objectMapper.readTree(aiResponse);
+                json = objectMapper.writeValueAsString(node);
+                resume.setGeneratedContent(json);
+            } catch (JsonProcessingException e) {
+                throw new BadRequestException("AI returned invalid resume JSON");
+            }
+
+            Resume existingResume = resumeMapper.findByJobIdAndGenerationMethod(
+                    jobId,
+                    ResumeGenerationMethod.RAG
+            );
+
+            if (existingResume == null) {
+                resumeMapper.insert(resume);
+            } else {
+                resume.setId(existingResume.getId());
+                resumeMapper.updateById(resume);
+            }
+
+            generationHistoryService.recordSuccess(
+                    userId,
+                    jobId,
+                    resume.getId(),
+                    GenerationMethod.RAG,
+                    promptTemplate.getId(),
+                    openAiResumeService.getModelName()
+            );
+
+            return "RAG Resume Generated";
+        } catch (RuntimeException ex) {
+            if (userId == null) {
+                userId = findUserIdByJobId(jobId);
+            }
+            recordGenerationFailure(
+                    userId,
+                    jobId,
+                    GenerationMethod.RAG,
+                    promptTemplate,
+                    ex
+            );
+            throw ex;
         }
-
-        Resume existingResume = resumeMapper.findByJobIdAndGenerationMethod(
-                jobId,
-                ResumeGenerationMethod.RAG
-        );
-
-        if (existingResume == null) {
-            resumeMapper.insert(resume);
-        } else {
-            resume.setId(existingResume.getId());
-            resumeMapper.updateById(resume);
-        }
-
-        return "RAG Resume Generated";
     }
 
     public void ensureGenerationAllowed(Long jobId) {
@@ -336,6 +397,32 @@ public class ResumeService {
 
     public void markExistingResumeDirtyForGeneration(Long jobId, ResumeGenerationMethod generationMethod) {
         resumeMapper.markResumeDirtyByJobIdAndGenerationMethod(jobId, generationMethod);
+    }
+
+    private void recordGenerationFailure(
+            Long userId,
+            Long jobId,
+            GenerationMethod generationMethod,
+            PromptTemplate promptTemplate,
+            RuntimeException exception
+    ) {
+        generationHistoryService.recordFailure(
+                userId,
+                jobId,
+                generationMethod,
+                promptTemplate == null ? null : promptTemplate.getId(),
+                openAiResumeService.getModelName(),
+                exception.getMessage()
+        );
+    }
+
+    private Long findUserIdByJobId(Long jobId) {
+        if (jobId == null) {
+            return null;
+        }
+
+        Job job = jobMapper.findById(jobId);
+        return job == null ? null : job.getUserId();
     }
 
     private String callLlmWithRetry(String prompt) {
@@ -401,9 +488,20 @@ public class ResumeService {
         }
 
         Long userId = context.getJob() == null ? null : context.getJob().getUserId();
-        String template = promptTemplateService.getEffectivePromptContent(userId, PromptTemplateType.NORMAL);
+        PromptTemplate promptTemplate = promptTemplateService.getEffectivePrompt(userId, PromptTemplateType.NORMAL);
+        return buildPrompt(context, promptTemplate);
+    }
 
-        return template
+    private String buildPrompt(ResumeGenerationContext context, PromptTemplate promptTemplate) {
+        if (context == null) {
+            throw new IllegalArgumentException("Resume generation context is null");
+        }
+
+        if (promptTemplate == null || promptTemplate.getContent() == null || promptTemplate.getContent().isBlank()) {
+            throw new IllegalStateException("Prompt template content is blank for NORMAL generation.");
+        }
+
+        return promptTemplate.getContent()
                 .replace("{{roleFocus}}", buildRoleFocus(context.getJob()))
                 .replace("{{targetJob}}", buildTargetJob(context.getJob()))
                 .replace("{{candidateProfile}}", buildCandidateProfile(context.getProfile()))
@@ -422,9 +520,24 @@ public class ResumeService {
             throw new IllegalArgumentException("Resume context cannot be blank.");
         }
 
-        String template = promptTemplateService.getEffectivePromptContent(job.getUserId(), PromptTemplateType.RAG);
+        PromptTemplate promptTemplate = promptTemplateService.getEffectivePrompt(job.getUserId(), PromptTemplateType.RAG);
+        return buildRagPrompt(job, resumeContext, promptTemplate);
+    }
 
-        return template
+    private String buildRagPrompt(Job job, String resumeContext, PromptTemplate promptTemplate) {
+        if (job == null) {
+            throw new IllegalArgumentException("Job cannot be null.");
+        }
+
+        if (!hasText(resumeContext)) {
+            throw new IllegalArgumentException("Resume context cannot be blank.");
+        }
+
+        if (promptTemplate == null || promptTemplate.getContent() == null || promptTemplate.getContent().isBlank()) {
+            throw new IllegalStateException("Prompt template content is blank for RAG generation.");
+        }
+
+        return promptTemplate.getContent()
                 .replace("{{roleFocus}}", buildRoleFocus(job))
                 .replace("{{targetJob}}", buildTargetJob(job))
                 .replace("{{resumeContext}}", resumeContext);
