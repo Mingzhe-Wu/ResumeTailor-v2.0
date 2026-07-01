@@ -14,25 +14,46 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export function getApiErrorMessage(error, fallback = "Request failed") {
+const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
+const NETWORK_ERROR_MESSAGE = "Network error. Please check your connection.";
+
+function isTechnicalMessage(message) {
+  return (
+    /\b[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*){2,}\b/.test(message) ||
+    /\b(Exception|StackTrace|SQLException|NullPointerException|RuntimeException)\b/.test(message) ||
+    /\bat\s+[\w.$]+\(.*:\d+\)/.test(message)
+  );
+}
+
+function safeMessage(message, fallback) {
+  if (typeof message !== "string" || !message.trim()) {
+    return fallback;
+  }
+
+  const trimmed = message.trim();
+  return isTechnicalMessage(trimmed) ? fallback : trimmed;
+}
+
+export function getApiErrorMessage(error, fallback = DEFAULT_ERROR_MESSAGE) {
   const data = error?.response?.data;
+  const fallbackMessage = fallback || DEFAULT_ERROR_MESSAGE;
 
   if (typeof data === "string" && data.trim()) {
-    return data;
+    return safeMessage(data, fallbackMessage);
   }
 
   if (data && typeof data === "object") {
-    const message = data.message || data.error || data.detail;
+    const message = data.message || data.errorMessage || data.error || data.detail;
     if (typeof message === "string" && message.trim()) {
-      return message;
+      return safeMessage(message, fallbackMessage);
     }
   }
 
-  if (error?.message && !error.response) {
-    return error.message;
+  if (!error?.response) {
+    return NETWORK_ERROR_MESSAGE;
   }
 
-  return fallback;
+  return fallbackMessage;
 }
 
 export function getEffectivePromptTemplate(type) {

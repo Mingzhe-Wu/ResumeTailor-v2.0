@@ -245,7 +245,7 @@ function App() {
         setResumePanelMessage(backendMessage);
         fetchResumeForJob(jobId, true, RESUME_METHOD_NORMAL);
       } else {
-        showErrorToast(backendMessage);
+        showToast(backendMessage, err?.response?.status === 429 ? "warning" : "danger");
         setResumePanelError(backendMessage);
       }
       setResumeLoading(false);
@@ -282,7 +282,7 @@ function App() {
         setResumePanelMessage(backendMessage);
         fetchResumeForJob(jobId, true, RESUME_METHOD_RAG);
       } else {
-        showErrorToast(backendMessage);
+        showToast(backendMessage, err?.response?.status === 429 ? "warning" : "danger");
         setResumePanelError(backendMessage);
       }
     }
@@ -322,8 +322,10 @@ function App() {
           setGeneratingJobId(null);
           setGeneratingResumeMethod(null);
           setResumeLoading(false);
-          const errorMessage =
-            statusResponse.data?.errorMessage || "Resume generation failed. Please try again.";
+          const errorMessage = getApiErrorMessage(
+            { response: { data: statusResponse.data } },
+            "Resume generation failed. Please try again."
+          );
           setResumePanelError(errorMessage);
           showErrorToast(errorMessage);
         }
@@ -336,9 +338,8 @@ function App() {
         setGeneratingJobId(null);
         setGeneratingResumeMethod(null);
         setResumeLoading(false);
-        const errorMessage = getApiErrorMessage(err, "Failed to check resume generation status.");
+        const errorMessage = showApiErrorToast(err, "Failed to check resume generation status.");
         setResumePanelError(errorMessage);
-        showErrorToast(errorMessage);
       }
     }, 3000);
   };
@@ -519,7 +520,7 @@ function App() {
       });
       showToast("Generated resume saved.");
     } catch (err) {
-      showErrorToast(getApiErrorMessage(err, "Failed to save resume."));
+      showApiErrorToast(err, "Failed to save resume.");
     }
   }
 
@@ -631,6 +632,12 @@ function App() {
     showToast(text, "danger");
   }
 
+  function showApiErrorToast(error, fallbackMessage) {
+    const errorMessage = getApiErrorMessage(error, fallbackMessage);
+    showToast(errorMessage, error?.response?.status === 429 ? "warning" : "danger");
+    return errorMessage;
+  }
+
   function getQuotaUserId(jobId) {
     return (
       user?.id ||
@@ -665,7 +672,8 @@ function App() {
       } else {
         showToast("Generation started.");
       }
-    } catch {
+    } catch (err) {
+      console.warn("Failed to fetch generation quota:", err);
       showToast("Generation started.");
     }
   }
@@ -679,9 +687,8 @@ function App() {
       setPromptTemplate(response.data);
       setPromptContent(response.data?.content || "");
     } catch (err) {
-      const errorMessage = getApiErrorMessage(err, "Failed to fetch prompt template.");
+      const errorMessage = showApiErrorToast(err, "Failed to fetch prompt template.");
       setPromptError(errorMessage);
-      showErrorToast(errorMessage);
     } finally {
       setPromptLoading(false);
     }
@@ -733,9 +740,8 @@ function App() {
       setPromptContent(response.data?.content || promptContent);
       showToast("Prompt template saved.");
     } catch (err) {
-      const errorMessage = getApiErrorMessage(err, "Failed to save prompt template.");
+      const errorMessage = showApiErrorToast(err, "Failed to save prompt template.");
       setPromptError(errorMessage);
-      showErrorToast(errorMessage);
     } finally {
       setPromptSaving(false);
     }
@@ -755,9 +761,8 @@ function App() {
       await fetchPromptTemplate(promptType);
       showToast("Prompt reset to default.");
     } catch (err) {
-      const errorMessage = getApiErrorMessage(err, "Failed to reset prompt template.");
+      const errorMessage = showApiErrorToast(err, "Failed to reset prompt template.");
       setPromptError(errorMessage);
-      showErrorToast(errorMessage);
     } finally {
       setPromptResetting(false);
     }
@@ -1013,7 +1018,8 @@ function App() {
       await fetchJobs(response.data.id);
       showToast("Job created.");
     } catch (err) {
-      setJobError(getApiErrorMessage(err, "Failed to create job"));
+      const errorMessage = showApiErrorToast(err, "Failed to create job");
+      setJobError(errorMessage);
     }
   }
 
@@ -1041,7 +1047,8 @@ function App() {
       await fetchJobs(response.data.id);
       showToast("Job saved.");
     } catch (err) {
-      setJobError(getApiErrorMessage(err, "Failed to update job"));
+      const errorMessage = showApiErrorToast(err, "Failed to update job");
+      setJobError(errorMessage);
     }
   }
 
@@ -1072,7 +1079,8 @@ function App() {
     await fetchJobs(updatedJobs[0]?.id);
     showToast("Job deleted.", "danger");
   } catch (err) {
-    setJobError(getApiErrorMessage(err, "Failed to delete job"));
+    const errorMessage = showApiErrorToast(err, "Failed to delete job");
+    setJobError(errorMessage);
   }
 }
 
@@ -1096,7 +1104,8 @@ function App() {
         resetProfileForm();
       } else {
         setProfile(null);
-        setProfileError(getApiErrorMessage(err, "Failed to fetch profile"));
+        const errorMessage = showApiErrorToast(err, "Failed to fetch profile");
+        setProfileError(errorMessage);
       }
     }
   }
@@ -1127,7 +1136,8 @@ function App() {
       showToast("Profile saved.");
       await fetchJobs(selectedJob?.id);
     } catch (err) {
-      setProfileError(getApiErrorMessage(err, "Failed to create profile"));
+      const errorMessage = showApiErrorToast(err, "Failed to create profile");
+      setProfileError(errorMessage);
     }
   }
 
@@ -1146,7 +1156,8 @@ function App() {
       fetchProfileSections(response.data.id);
       showToast("Profile saved.");
     } catch (err) {
-      setProfileError(getApiErrorMessage(err, "Failed to update profile"));
+      const errorMessage = showApiErrorToast(err, "Failed to update profile");
+      setProfileError(errorMessage);
     }
   }
 
@@ -1468,7 +1479,13 @@ function App() {
           <div className="dashboard-alert">
             <p
               key={toast.id}
-              className={`${toast.type === "danger" ? "danger-text" : "success-text"} ${
+              className={`${
+                toast.type === "danger"
+                  ? "danger-text"
+                  : toast.type === "warning"
+                    ? "warning-text"
+                    : "success-text"
+              } ${
                 toast.exiting ? "toast-exit" : "toast-enter"
               }`}
             >
