@@ -79,6 +79,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequestsException(TooManyRequestsException e) {
+        ErrorResponse response = new ErrorResponse(e.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
+    }
+
     private String getMostSpecificMessage(Throwable ex) {
         Throwable current = ex;
         while (current.getCause() != null) {

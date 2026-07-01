@@ -14,19 +14,21 @@ import com.mingzhe.resumetailor.generationhistory.GenerationMethod;
 import com.mingzhe.resumetailor.job.Job;
 import com.mingzhe.resumetailor.job.JobMapper;
 import com.mingzhe.resumetailor.openai.ChunkEmbeddingService;
-import com.mingzhe.resumetailor.openai.OpenAiResumeService;
 import com.mingzhe.resumetailor.openai.OpenAiResumeResponse;
+import com.mingzhe.resumetailor.openai.OpenAiResumeService;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
+import com.mingzhe.resumetailor.project.Project;
+import com.mingzhe.resumetailor.project.ProjectMapper;
 import com.mingzhe.resumetailor.prompttemplate.PromptTemplate;
 import com.mingzhe.resumetailor.prompttemplate.PromptTemplateService;
 import com.mingzhe.resumetailor.prompttemplate.PromptTemplateType;
-import com.mingzhe.resumetailor.project.Project;
-import com.mingzhe.resumetailor.project.ProjectMapper;
 import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkService;
 import com.mingzhe.resumetailor.rag.ResumeContextBuilderService;
 import com.mingzhe.resumetailor.rag.ResumeRetrievalResultDTO;
 import com.mingzhe.resumetailor.rag.SemanticRetrievalService;
+import com.mingzhe.resumetailor.redis.AiQuotaService;
+import com.mingzhe.resumetailor.redis.RateLimitService;
 import com.mingzhe.resumetailor.skill.Skill;
 import com.mingzhe.resumetailor.skill.SkillMapper;
 import org.slf4j.Logger;
@@ -34,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -58,6 +61,8 @@ public class ResumeService {
     private final ResumeContextBuilderService resumeContextBuilderService;
     private final PromptTemplateService promptTemplateService;
     private final GenerationHistoryService generationHistoryService;
+    private final AiQuotaService aiQuotaService;
+    private final RateLimitService rateLimitService;
 
     private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
 
@@ -79,7 +84,7 @@ public class ResumeService {
             SemanticRetrievalService semanticRetrievalService,
             ResumeContextBuilderService resumeContextBuilderService,
             PromptTemplateService promptTemplateService,
-            GenerationHistoryService generationHistoryService
+            GenerationHistoryService generationHistoryService, AiQuotaService aiQuotaService, RateLimitService rateLimitService
     ) {
         this.jobMapper = jobMapper;
         this.profileMapper = profileMapper;
@@ -96,6 +101,8 @@ public class ResumeService {
         this.resumeContextBuilderService = resumeContextBuilderService;
         this.promptTemplateService = promptTemplateService;
         this.generationHistoryService = generationHistoryService;
+        this.aiQuotaService = aiQuotaService;
+        this.rateLimitService = rateLimitService;
     }
 
     public Resume createResume(CreateResumeDTO request) {
@@ -191,11 +198,16 @@ public class ResumeService {
 
     @Async
     public void generateResumeAsync(Long jobId) {
+        generateResumeAsync(jobId, true);
+    }
+
+    @Async
+    public void generateResumeAsync(Long jobId, boolean checkQuota) {
         log.info("Async resume generation started for jobId={}, thread={}",
                 jobId, Thread.currentThread().getName());
 
         try {
-            String result = generateResume(jobId);
+            String result = generateResumeInternal(jobId, checkQuota);
             log.info("Async resume generation finished for jobId={}, result={}", jobId, result);
         } catch (Exception e) {
             log.error("Async resume generation failed for jobId={}: {}", jobId, e.getMessage(), e);
@@ -203,6 +215,10 @@ public class ResumeService {
     }
 
     public String generateResume(Long jobId) {
+        return generateResumeInternal(jobId, true);
+    }
+
+    private String generateResumeInternal(Long jobId, boolean checkQuota) {
         Long userId = null;
         PromptTemplate promptTemplate = null;
 
@@ -210,6 +226,11 @@ public class ResumeService {
             // fetch resume context with given job id
             ResumeGenerationContext context = fetchResumeContext(jobId);
             userId = context.getJob().getUserId();
+
+            if (checkQuota) {
+                checkAndIncreaseGenerationQuotaForUser(userId);
+            }
+
             promptTemplate = promptTemplateService.getEffectivePrompt(userId, PromptTemplateType.NORMAL);
             ensureGenerationAllowed(jobId);
 
@@ -274,7 +295,53 @@ public class ResumeService {
         }
     }
 
+    public void checkAndIncreaseGenerationQuota(Long jobId) {
+        Job job = jobMapper.findById(jobId);
+        if (job == null) {
+            throw new ResourceNotFoundException("Job not found");
+        }
+
+        Long userId = job.getUserId();
+        if (userId == null) {
+            throw new BadRequestException("Job user id is missing.");
+        }
+
+        checkAndIncreaseGenerationQuotaForUser(userId);
+    }
+
+    private void checkAndIncreaseGenerationQuotaForUser(Long userId) {
+        rateLimitService.checkAndIncrease(
+                userId,
+                "resume-generate",
+                3,
+                Duration.ofMinutes(1)
+        );
+        aiQuotaService.checkAndIncreaseDailyUsage(userId);
+    }
+
+    @Async
+    public void generateResumeWithRagAsync(Long jobId) {
+        generateResumeWithRagAsync(jobId, true);
+    }
+
+    @Async
+    public void generateResumeWithRagAsync(Long jobId, boolean checkQuota) {
+        log.info("Async RAG resume generation started for jobId={}, thread={}",
+                jobId, Thread.currentThread().getName());
+
+        try {
+            String result = generateResumeWithRagInternal(jobId, checkQuota);
+            log.info("Async RAG resume generation finished for jobId={}, result={}", jobId, result);
+        } catch (Exception e) {
+            log.error("Async RAG resume generation failed for jobId={}: {}", jobId, e.getMessage(), e);
+        }
+    }
+
     public String generateResumeWithRag(Long jobId) {
+        return generateResumeWithRagInternal(jobId, true);
+    }
+
+    private String generateResumeWithRagInternal(Long jobId, boolean checkQuota) {
         Long userId = null;
         PromptTemplate promptTemplate = null;
 
@@ -287,6 +354,10 @@ public class ResumeService {
             userId = job.getUserId();
             if (userId == null) {
                 throw new BadRequestException("Job user id is missing.");
+            }
+
+            if (checkQuota) {
+                checkAndIncreaseGenerationQuotaForUser(userId);
             }
 
             promptTemplate = promptTemplateService.getEffectivePrompt(userId, PromptTemplateType.RAG);

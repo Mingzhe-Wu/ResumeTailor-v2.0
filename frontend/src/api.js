@@ -61,4 +61,8 @@ export function getSkillKeywords() {
   return api.get("/api/skill-keywords");
 }
 
+export function getTodayAiQuota(userId) {
+  return api.get(`/api/redis/quota/today?userId=${encodeURIComponent(userId)}`);
+}
+
 export default api;

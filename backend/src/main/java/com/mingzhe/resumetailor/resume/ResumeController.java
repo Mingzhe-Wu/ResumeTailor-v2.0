@@ -57,9 +57,19 @@ public class ResumeController {
     @PostMapping("/generate-async/{jobId}")
     public ResponseEntity<String> generateResumeAsync(@PathVariable Long jobId) {
         resumeService.ensureGenerationAllowed(jobId, ResumeGenerationMethod.NORMAL);
+        resumeService.checkAndIncreaseGenerationQuota(jobId);
         resumeService.markExistingResumeDirtyForGeneration(jobId, ResumeGenerationMethod.NORMAL);
-        resumeService.generateResumeAsync(jobId);
+        resumeService.generateResumeAsync(jobId, false);
         return ResponseEntity.ok("Resume generation started asynchronously");
+    }
+
+    @PostMapping("/generate-rag-async/{jobId}")
+    public ResponseEntity<String> generateResumeWithRagAsync(@PathVariable Long jobId) {
+        resumeService.ensureGenerationAllowed(jobId, ResumeGenerationMethod.RAG);
+        resumeService.checkAndIncreaseGenerationQuota(jobId);
+        resumeService.markExistingResumeDirtyForGeneration(jobId, ResumeGenerationMethod.RAG);
+        resumeService.generateResumeWithRagAsync(jobId, false);
+        return ResponseEntity.ok("RAG resume generation started asynchronously");
     }
 
 }

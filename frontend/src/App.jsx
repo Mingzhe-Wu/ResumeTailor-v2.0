@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import api, {
   getApiErrorMessage,
   getEffectivePromptTemplate,
+  getTodayAiQuota,
   resetPromptTemplate,
   savePromptTemplate,
 } from "./api";
@@ -233,9 +234,10 @@ function App() {
 
       await api.post(`/api/resume/generate-async/${jobId}`);
 
-      showToast("Resume generation started.");
+      const quotaPromise = fetchGenerationQuota(jobId).catch(() => null);
+      await showGenerationStartedToast(quotaPromise);
 
-      pollGeneratedResume(jobId);
+      pollGeneratedResume(jobId, RESUME_METHOD_NORMAL);
     } catch (err) {
       const backendMessage = getApiErrorMessage(err, "Failed to start resume generation.");
       if (backendMessage === "Resume is already up to date.") {
@@ -268,10 +270,11 @@ function App() {
       setGeneratingResumeMethod(RESUME_METHOD_RAG);
       setSelectedResumeMethod(RESUME_METHOD_RAG);
 
-      await api.post(`/api/resume/generate-rag/${jobId}`);
+      await api.post(`/api/resume/generate-rag-async/${jobId}`);
 
-      await fetchResumeForJob(jobId, false, RESUME_METHOD_RAG);
-      showToast("RAG resume generated successfully.");
+      const quotaPromise = fetchGenerationQuota(jobId).catch(() => null);
+      await showGenerationStartedToast(quotaPromise);
+      pollGeneratedResume(jobId, RESUME_METHOD_RAG);
     } catch (err) {
       const backendMessage = getApiErrorMessage(err, "Failed to generate RAG resume.");
       if (backendMessage === "Resume is already up to date.") {
@@ -282,30 +285,29 @@ function App() {
         showErrorToast(backendMessage);
         setResumePanelError(backendMessage);
       }
-    } finally {
-      setResumeLoading(false);
-      setGeneratingJobId(null);
-      setGeneratingResumeMethod(null);
     }
   };
 
-  const pollGeneratedResume = (jobId) => {
+  const pollGeneratedResume = (jobId, generationMethod) => {
     const intervalId = setInterval(async () => {
       try {
         const res = await api.get(`/api/resume/fetch/${jobId}`, {
-          params: { generationMethod: RESUME_METHOD_NORMAL },
+          params: { generationMethod },
         });
 
         if (res.data && res.data.needGenerate === false) {
           clearInterval(intervalId);
-          setResumeVersion(RESUME_METHOD_NORMAL, res.data);
-          setResumeContent(deepClone(res.data.generatedContent));
+          setResumeVersion(generationMethod, res.data);
           setResumeLoading(false);
           setResumePanelError("");
           setResumePanelMessage("");
           setGeneratingJobId(null);
           setGeneratingResumeMethod(null);
-          showToast("Resume generated successfully.");
+          showToast(
+            generationMethod === RESUME_METHOD_RAG
+              ? "RAG resume generated successfully."
+              : "Resume generated successfully."
+          );
         }
       } catch (err) {
         if (err.response?.status !== 404) {
@@ -607,6 +609,45 @@ function App() {
 
   function showErrorToast(text) {
     showToast(text, "danger");
+  }
+
+  function getQuotaUserId(jobId) {
+    return (
+      user?.id ||
+      selectedJob?.userId ||
+      jobs.find((job) => job.id === jobId)?.userId
+    );
+  }
+
+  async function fetchGenerationQuota(jobId) {
+    const quotaUserId =
+      getQuotaUserId(jobId);
+
+    if (!quotaUserId) {
+      return null;
+    }
+
+    const response = await getTodayAiQuota(quotaUserId);
+    const remaining = Number(response.data?.remaining);
+
+    return Number.isFinite(remaining) ? remaining : null;
+  }
+
+  async function showGenerationStartedToast(quotaPromise, subtractStartedGeneration = false) {
+    try {
+      const remaining = await quotaPromise;
+
+      if (Number.isFinite(remaining)) {
+        const displayRemaining = subtractStartedGeneration
+          ? Math.max(0, remaining - 1)
+          : remaining;
+        showToast(`Generation started. ${displayRemaining} times left today.`);
+      } else {
+        showToast("Generation started.");
+      }
+    } catch {
+      showToast("Generation started.");
+    }
   }
 
   async function fetchPromptTemplate(type = promptType) {
