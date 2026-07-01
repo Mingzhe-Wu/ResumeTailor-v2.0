@@ -1,15 +1,33 @@
 package com.mingzhe.resumetailor.prompttemplate;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
+import com.mingzhe.resumetailor.redis.RedisCacheService;
+import com.mingzhe.resumetailor.redis.RedisKeyConstants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+
+@Slf4j
 @Service
 public class PromptTemplateService {
 
-    private final PromptTemplateMapper promptTemplateMapper;
+    private static final Duration EFFECTIVE_PROMPT_CACHE_TTL = Duration.ofMinutes(10);
 
-    public PromptTemplateService(PromptTemplateMapper promptTemplateMapper) {
+    private final PromptTemplateMapper promptTemplateMapper;
+    private final RedisCacheService redisCacheService;
+    private final ObjectMapper objectMapper;
+
+    public PromptTemplateService(
+            PromptTemplateMapper promptTemplateMapper,
+            RedisCacheService redisCacheService,
+            ObjectMapper objectMapper
+    ) {
         this.promptTemplateMapper = promptTemplateMapper;
+        this.redisCacheService = redisCacheService;
+        this.objectMapper = objectMapper;
     }
 
     public String findActiveTemplate(PromptTemplateType type) {
@@ -24,11 +42,20 @@ public class PromptTemplateService {
         validateUserId(userId);
         validateType(type);
 
+        String cacheKey = RedisKeyConstants.effectivePromptKey(userId, type.name());
+        PromptTemplate cachedPrompt = readEffectivePromptFromCache(cacheKey);
+        if (cachedPrompt != null) {
+            log.info("Effective prompt cache hit for key={}", cacheKey);
+            return cachedPrompt;
+        }
+
+        log.info("Effective prompt cache miss for key={}", cacheKey);
         PromptTemplate promptTemplate = promptTemplateMapper.findEffectivePromptByType(userId, type.name());
         if (promptTemplate == null) {
             throw new IllegalStateException("No prompt template found for type: " + type);
         }
 
+        writeEffectivePromptToCache(cacheKey, promptTemplate);
         return promptTemplate;
     }
 
@@ -58,6 +85,7 @@ public class PromptTemplateService {
             promptTemplateMapper.insertUserPrompt(promptTemplate);
         }
 
+        evictEffectivePromptCache(userId, type);
         return promptTemplateMapper.findUserPromptByType(userId, type.name());
     }
 
@@ -66,6 +94,53 @@ public class PromptTemplateService {
         validateType(type);
 
         promptTemplateMapper.deleteUserPrompt(userId, type.name());
+        evictEffectivePromptCache(userId, type);
+    }
+
+    private PromptTemplate readEffectivePromptFromCache(String cacheKey) {
+        String cachedJson;
+        try {
+            cachedJson = redisCacheService.get(cacheKey);
+        } catch (Exception e) {
+            log.warn("Failed to read effective prompt cache for key={}. Falling back to DB.", cacheKey, e);
+            return null;
+        }
+
+        if (cachedJson == null || cachedJson.isBlank()) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readValue(cachedJson, PromptTemplate.class);
+        } catch (Exception e) {
+            log.warn("Failed to deserialize effective prompt cache for key={}. Deleting bad cache entry.", cacheKey, e);
+            try {
+                redisCacheService.delete(cacheKey);
+            } catch (Exception deleteException) {
+                log.warn("Failed to delete bad effective prompt cache for key={}.", cacheKey, deleteException);
+            }
+            return null;
+        }
+    }
+
+    private void writeEffectivePromptToCache(String cacheKey, PromptTemplate promptTemplate) {
+        try {
+            String json = objectMapper.writeValueAsString(promptTemplate);
+            redisCacheService.set(cacheKey, json, EFFECTIVE_PROMPT_CACHE_TTL);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize effective prompt for key={}. Returning DB result without cache.", cacheKey, e);
+        } catch (Exception e) {
+            log.warn("Failed to write effective prompt cache for key={}. Returning DB result.", cacheKey, e);
+        }
+    }
+
+    private void evictEffectivePromptCache(Long userId, PromptTemplateType type) {
+        String cacheKey = RedisKeyConstants.effectivePromptKey(userId, type.name());
+        try {
+            redisCacheService.delete(cacheKey);
+        } catch (Exception e) {
+            log.warn("Failed to evict effective prompt cache for key={}.", cacheKey, e);
+        }
     }
 
     private void validateUserId(Long userId) {

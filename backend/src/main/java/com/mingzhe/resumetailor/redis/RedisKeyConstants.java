@@ -45,4 +45,8 @@ public class RedisKeyConstants {
     public static String rateLimitKey(Long userId, String action, LocalDateTime time) {
         return "rate:user:" + userId + ":" + action + ":" + MINUTE_FORMATTER.format(time);
     }
+
+    public static String effectivePromptKey(Long userId, String promptType) {
+        return "prompt:effective:user:" + userId + ":type:" + promptType;
+    }
 }

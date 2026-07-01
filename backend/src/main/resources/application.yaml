@@ -22,5 +22,5 @@ mybatis:
 
 ai:
   pricing:
-    input-per-million: 0.75
-    output-per-million: 4.50
+    input-per-million: 5.00
+    output-per-million: 30.00
