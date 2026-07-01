@@ -15,6 +15,7 @@ import com.mingzhe.resumetailor.job.Job;
 import com.mingzhe.resumetailor.job.JobMapper;
 import com.mingzhe.resumetailor.openai.ChunkEmbeddingService;
 import com.mingzhe.resumetailor.openai.OpenAiResumeService;
+import com.mingzhe.resumetailor.openai.OpenAiResumeResponse;
 import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
 import com.mingzhe.resumetailor.prompttemplate.PromptTemplate;
@@ -216,7 +217,7 @@ public class ResumeService {
             String prompt = buildPrompt(context, promptTemplate);
 
             // call OpenAi api up to three times to generate resume
-            String aiResponse = callLlmWithRetry(prompt);
+            OpenAiResumeResponse aiResponse = callLlmWithRetry(prompt);
 
             // construct resume and save to database
             Resume resume = new Resume();
@@ -227,7 +228,7 @@ public class ResumeService {
 
             String json;
             try {
-                JsonNode node = objectMapper.readTree(aiResponse);
+                JsonNode node = objectMapper.readTree(aiResponse.getContent());
                 json = objectMapper.writeValueAsString(node);
                 resume.setGeneratedContent(json);
             } catch (JsonProcessingException e) {
@@ -252,7 +253,9 @@ public class ResumeService {
                     resume.getId(),
                     GenerationMethod.NORMAL,
                     promptTemplate.getId(),
-                    openAiResumeService.getModelName()
+                    openAiResumeService.getModelName(),
+                    aiResponse.getInputTokenCount(),
+                    aiResponse.getOutputTokenCount()
             );
 
             return "Resume Generated";
@@ -321,7 +324,7 @@ public class ResumeService {
             // log.info("RAG resume context for jobId={}:\n{}", jobId, resumeContext);
 
             String prompt = buildRagPrompt(job, resumeContext, promptTemplate);
-            String aiResponse = callLlmWithRetry(prompt);
+            OpenAiResumeResponse aiResponse = callLlmWithRetry(prompt);
 
             Resume resume = new Resume();
             resume.setJobId(jobId);
@@ -331,7 +334,7 @@ public class ResumeService {
 
             String json;
             try {
-                JsonNode node = objectMapper.readTree(aiResponse);
+                JsonNode node = objectMapper.readTree(aiResponse.getContent());
                 json = objectMapper.writeValueAsString(node);
                 resume.setGeneratedContent(json);
             } catch (JsonProcessingException e) {
@@ -356,7 +359,9 @@ public class ResumeService {
                     resume.getId(),
                     GenerationMethod.RAG,
                     promptTemplate.getId(),
-                    openAiResumeService.getModelName()
+                    openAiResumeService.getModelName(),
+                    aiResponse.getInputTokenCount(),
+                    aiResponse.getOutputTokenCount()
             );
 
             return "RAG Resume Generated";
@@ -425,7 +430,7 @@ public class ResumeService {
         return job == null ? null : job.getUserId();
     }
 
-    private String callLlmWithRetry(String prompt) {
+    private OpenAiResumeResponse callLlmWithRetry(String prompt) {
         int maxAttempts = 3;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -433,10 +438,10 @@ public class ResumeService {
                 log.info("LLM attempt {} started", attempt);
 
                 // call OpenAi api to generate a response
-                String aiResponse = openAiResumeService.generate(prompt);
+                OpenAiResumeResponse aiResponse = openAiResumeService.generateWithUsage(prompt);
 
                 // validate the response
-                validateGeneratedResume(aiResponse);
+                validateGeneratedResume(aiResponse.getContent());
 
                 log.info("LLM attempt {} succeeded", attempt);
                 return aiResponse;

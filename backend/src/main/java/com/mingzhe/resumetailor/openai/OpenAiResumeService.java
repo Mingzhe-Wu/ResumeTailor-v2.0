@@ -27,6 +27,10 @@ public class OpenAiResumeService {
     }
 
     public String generate(String prompt) {
+        return generateWithUsage(prompt).getContent();
+    }
+
+    public OpenAiResumeResponse generateWithUsage(String prompt) {
         try {
             URL url = new URL("https://api.openai.com/v1/chat/completions");
 
@@ -93,15 +97,35 @@ public class OpenAiResumeService {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode root = objectMapper.readTree(responseBody);
 
-            return root.path("choices")
+            OpenAiResumeResponse resumeResponse = new OpenAiResumeResponse();
+            resumeResponse.setContent(root.path("choices")
                     .get(0)
                     .path("message")
                     .path("content")
-                    .asText();
+                    .asText());
+
+            JsonNode usage = root.path("usage");
+            if (!usage.isMissingNode() && !usage.isNull()) {
+                resumeResponse.setInputTokenCount(readOptionalInt(usage, "prompt_tokens", "input_tokens"));
+                resumeResponse.setOutputTokenCount(readOptionalInt(usage, "completion_tokens", "output_tokens"));
+            }
+
+            return resumeResponse;
 
         } catch (Exception e) {
             e.printStackTrace();
-            return "AI call failed";
+            OpenAiResumeResponse response = new OpenAiResumeResponse();
+            response.setContent("AI call failed");
+            return response;
         }
+    }
+
+    private Integer readOptionalInt(JsonNode node, String primaryField, String fallbackField) {
+        JsonNode value = node.path(primaryField);
+        if (value.isMissingNode() || value.isNull()) {
+            value = node.path(fallbackField);
+        }
+
+        return value.isInt() || value.isLong() ? value.asInt() : null;
     }
 }

@@ -2,6 +2,7 @@ package com.mingzhe.resumetailor.generationhistory;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,5 +16,8 @@ public class GenerationHistory {
     private String modelName;
     private GenerationStatus status;
     private String errorMessage;
+    private Integer inputTokenCount;
+    private Integer outputTokenCount;
+    private BigDecimal estimatedCostUsd;
     private LocalDateTime createdAt;
 }

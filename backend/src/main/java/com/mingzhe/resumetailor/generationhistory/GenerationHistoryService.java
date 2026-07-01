@@ -10,9 +10,14 @@ public class GenerationHistoryService {
     private static final Logger log = LoggerFactory.getLogger(GenerationHistoryService.class);
 
     private final GenerationHistoryMapper generationHistoryMapper;
+    private final GenerationCostService generationCostService;
 
-    public GenerationHistoryService(GenerationHistoryMapper generationHistoryMapper) {
+    public GenerationHistoryService(
+            GenerationHistoryMapper generationHistoryMapper,
+            GenerationCostService generationCostService
+    ) {
         this.generationHistoryMapper = generationHistoryMapper;
+        this.generationCostService = generationCostService;
     }
 
     public void recordSuccess(
@@ -21,7 +26,9 @@ public class GenerationHistoryService {
             Long resumeVersionId,
             GenerationMethod generationMethod,
             Long promptTemplateId,
-            String modelName
+            String modelName,
+            Integer inputTokenCount,
+            Integer outputTokenCount
     ) {
         record(
                 userId,
@@ -31,7 +38,9 @@ public class GenerationHistoryService {
                 promptTemplateId,
                 modelName,
                 GenerationStatus.SUCCESS,
-                null
+                null,
+                inputTokenCount,
+                outputTokenCount
         );
     }
 
@@ -51,7 +60,9 @@ public class GenerationHistoryService {
                 promptTemplateId,
                 modelName,
                 GenerationStatus.FAILED,
-                errorMessage
+                errorMessage,
+                null,
+                null
         );
     }
 
@@ -63,7 +74,9 @@ public class GenerationHistoryService {
             Long promptTemplateId,
             String modelName,
             GenerationStatus status,
-            String errorMessage
+            String errorMessage,
+            Integer inputTokenCount,
+            Integer outputTokenCount
     ) {
         if (userId == null || generationMethod == null || status == null) {
             log.warn("Skipping generation history record due to missing required fields: userId={}, method={}, status={}",
@@ -81,6 +94,11 @@ public class GenerationHistoryService {
             generationHistory.setModelName(modelName);
             generationHistory.setStatus(status);
             generationHistory.setErrorMessage(errorMessage);
+            generationHistory.setInputTokenCount(inputTokenCount);
+            generationHistory.setOutputTokenCount(outputTokenCount);
+            generationHistory.setEstimatedCostUsd(
+                    generationCostService.estimateCostUsd(inputTokenCount, outputTokenCount)
+            );
 
             generationHistoryMapper.insert(generationHistory);
         } catch (Exception ex) {

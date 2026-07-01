@@ -14,3 +14,8 @@ spring:
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
+
+ai:
+  pricing:
+    input-per-million: 0.75
+    output-per-million: 4.50

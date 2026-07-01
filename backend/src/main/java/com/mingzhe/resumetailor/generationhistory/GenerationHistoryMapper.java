@@ -16,7 +16,10 @@ public interface GenerationHistoryMapper {
             prompt_template_id,
             model_name,
             status,
-            error_message
+            error_message,
+            input_token_count,
+            output_token_count,
+            estimated_cost_usd
         ) VALUES (
             #{userId},
             #{jobId},
@@ -25,7 +28,10 @@ public interface GenerationHistoryMapper {
             #{promptTemplateId},
             #{modelName},
             #{status},
-            #{errorMessage}
+            #{errorMessage},
+            #{inputTokenCount},
+            #{outputTokenCount},
+            #{estimatedCostUsd}
         )
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
