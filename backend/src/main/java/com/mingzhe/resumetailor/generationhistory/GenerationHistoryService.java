@@ -102,7 +102,7 @@ public class GenerationHistoryService {
 
             generationHistoryMapper.insert(generationHistory);
         } catch (Exception ex) {
-            log.warn("Failed to record generation history: {}", ex.getMessage());
+            log.warn("Failed to record generation history", ex);
         }
     }
 }

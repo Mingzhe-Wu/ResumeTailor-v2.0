@@ -7,9 +7,11 @@ import com.mingzhe.resumetailor.security.JwtService;
 import com.mingzhe.resumetailor.user.User;
 import com.mingzhe.resumetailor.user.UserMapper;
 import com.mingzhe.resumetailor.user.UserResponseDTO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class AuthService {
 
@@ -52,6 +54,7 @@ public class AuthService {
             userResponse.setFullName(profile.getFullName());
         }
 
+        log.info("User (id = {}) {} logged in", user.getId(), user.getEmail());
         return new LoginResponseDTO(token, userResponse);
     }
 }

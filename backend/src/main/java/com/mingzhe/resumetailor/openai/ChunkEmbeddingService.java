@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.mingzhe.resumetailor.rag.EmbeddingStatus;
 import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunk;
 import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -16,6 +18,8 @@ import java.util.List;
 
 @Service
 public class ChunkEmbeddingService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChunkEmbeddingService.class);
 
     private static final String EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
     private static final String EMBEDDING_MODEL = "text-embedding-3-small";
@@ -54,8 +58,7 @@ public class ChunkEmbeddingService {
                 chunkMapper.updateById(update);
 
             } catch (Exception e) {
-                System.err.println("Failed to embed chunk id=" + chunk.getId());
-                e.printStackTrace();
+                log.warn("Failed to embed chunk id={}", chunk.getId(), e);
             }
         }
     }

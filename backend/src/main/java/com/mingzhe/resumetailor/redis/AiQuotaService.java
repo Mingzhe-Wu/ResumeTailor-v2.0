@@ -1,12 +1,14 @@
 package com.mingzhe.resumetailor.redis;
 
 import com.mingzhe.resumetailor.exceptions.TooManyRequestsException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class AiQuotaService {
 
@@ -24,6 +26,7 @@ public class AiQuotaService {
         if (count > DAILY_AI_CALL_LIMIT) {
             throw new TooManyRequestsException("Daily AI usage limit reached. Please try again tomorrow.");
         }
+        log.info("Quota limit checked for userId: {}, currently {} times.", userId, count);
     }
 
     public long getDailyUsage(Long userId) {

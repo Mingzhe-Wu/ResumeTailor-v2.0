@@ -6,6 +6,8 @@ import com.mingzhe.resumetailor.profile.Profile;
 import com.mingzhe.resumetailor.profile.ProfileMapper;
 import com.mingzhe.resumetailor.rag.ProfileEmbeddingChunkService;
 import com.mingzhe.resumetailor.resume.ResumeMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,6 +23,8 @@ import java.util.List;
  */
 @Service
 public class SkillService {
+
+    private static final Logger log = LoggerFactory.getLogger(SkillService.class);
 
     private final SkillMapper skillMapper;
     private final ProfileMapper profileMapper;
@@ -100,6 +104,7 @@ public class SkillService {
         try{
             skillMapper.updateById(update);
         } catch (DataIntegrityViolationException e) {
+            log.warn("Failed to update skill because it already exists, skillId={}", id, e);
             throw new BadRequestException("Skill already exists.");
         }
 
@@ -187,10 +192,13 @@ public class SkillService {
                 } catch (BadRequestException ex) {
                     throw ex;
                 } catch (RuntimeException ex) {
+                    log.warn("Failed to import skill from CSV line for profileId={}, category={}, name={}",
+                            profileId, category, name, ex);
                     failedCount++;
                 }
             }
         } catch (IOException ex) {
+            log.warn("Failed to read skill CSV file for profileId={}", profileId, ex);
             throw new BadRequestException("Failed to read CSV file");
         }
 

@@ -1,5 +1,7 @@
 package com.mingzhe.resumetailor.openai;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +19,8 @@ import java.nio.charset.StandardCharsets;
  */
 @Service
 public class OpenAiResumeService {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenAiResumeService.class);
 
     // get api key from system environment to avoid risky behaviors
     private final String apiKey = System.getenv("OPENAI_API_KEY");
@@ -113,7 +117,7 @@ public class OpenAiResumeService {
             return resumeResponse;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("OpenAI resume generation call failed", e);
             OpenAiResumeResponse response = new OpenAiResumeResponse();
             response.setContent("AI call failed");
             return response;

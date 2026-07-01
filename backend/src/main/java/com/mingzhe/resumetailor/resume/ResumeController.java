@@ -58,7 +58,6 @@ public class ResumeController {
     public ResponseEntity<String> generateResumeAsync(@PathVariable Long jobId) {
         resumeService.ensureGenerationAllowed(jobId, ResumeGenerationMethod.NORMAL);
         resumeService.checkAndIncreaseGenerationQuota(jobId);
-        resumeService.markExistingResumeDirtyForGeneration(jobId, ResumeGenerationMethod.NORMAL);
         resumeService.generateResumeAsync(jobId, false);
         return ResponseEntity.ok("Resume generation started asynchronously");
     }
@@ -67,7 +66,6 @@ public class ResumeController {
     public ResponseEntity<String> generateResumeWithRagAsync(@PathVariable Long jobId) {
         resumeService.ensureGenerationAllowed(jobId, ResumeGenerationMethod.RAG);
         resumeService.checkAndIncreaseGenerationQuota(jobId);
-        resumeService.markExistingResumeDirtyForGeneration(jobId, ResumeGenerationMethod.RAG);
         resumeService.generateResumeWithRagAsync(jobId, false);
         return ResponseEntity.ok("RAG resume generation started asynchronously");
     }

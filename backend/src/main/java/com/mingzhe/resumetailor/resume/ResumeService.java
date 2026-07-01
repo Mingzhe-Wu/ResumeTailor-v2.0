@@ -31,8 +31,7 @@ import com.mingzhe.resumetailor.redis.AiQuotaService;
 import com.mingzhe.resumetailor.redis.RateLimitService;
 import com.mingzhe.resumetailor.skill.Skill;
 import com.mingzhe.resumetailor.skill.SkillMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +41,7 @@ import java.util.List;
 /**
  * Business logic for validating and managing Resume records.
  */
+@Slf4j
 @Service
 public class ResumeService {
 
@@ -63,8 +63,6 @@ public class ResumeService {
     private final GenerationHistoryService generationHistoryService;
     private final AiQuotaService aiQuotaService;
     private final RateLimitService rateLimitService;
-
-    private static final Logger log = LoggerFactory.getLogger(ResumeService.class);
 
     private static final int EXP_AND_PROJECT_TOP_K = 11;
     private static final int SKILL_TOP_K = 5;
@@ -197,11 +195,6 @@ public class ResumeService {
     }
 
     @Async
-    public void generateResumeAsync(Long jobId) {
-        generateResumeAsync(jobId, true);
-    }
-
-    @Async
     public void generateResumeAsync(Long jobId, boolean checkQuota) {
         log.info("Async resume generation started for jobId={}, thread={}",
                 jobId, Thread.currentThread().getName());
@@ -210,7 +203,7 @@ public class ResumeService {
             String result = generateResumeInternal(jobId, checkQuota);
             log.info("Async resume generation finished for jobId={}, result={}", jobId, result);
         } catch (Exception e) {
-            log.error("Async resume generation failed for jobId={}: {}", jobId, e.getMessage(), e);
+            log.error("Async resume generation failed for jobId={}", jobId, e);
         }
     }
 
@@ -278,6 +271,7 @@ public class ResumeService {
                     aiResponse.getInputTokenCount(),
                     aiResponse.getOutputTokenCount()
             );
+            log.info("Normal generation for userId: {} succeeded, generation information stored into generation history.", userId);
 
             return "Resume Generated";
         } catch (RuntimeException ex) {
@@ -310,18 +304,24 @@ public class ResumeService {
     }
 
     private void checkAndIncreaseGenerationQuotaForUser(Long userId) {
-        rateLimitService.checkAndIncrease(
-                userId,
-                "resume-generate",
-                3,
-                Duration.ofMinutes(1)
-        );
-        aiQuotaService.checkAndIncreaseDailyUsage(userId);
-    }
+        try {
+            rateLimitService.checkAndIncrease(
+                    userId,
+                    "resume-generate",
+                    3,
+                    Duration.ofMinutes(1)
+            );
+        } catch (RuntimeException e) {
+            log.info("Redis rate limit check failed for resume generation, userId={}", userId, e);
+            throw e;
+        }
 
-    @Async
-    public void generateResumeWithRagAsync(Long jobId) {
-        generateResumeWithRagAsync(jobId, true);
+        try {
+            aiQuotaService.checkAndIncreaseDailyUsage(userId);
+        } catch (RuntimeException e) {
+            log.info("Redis daily AI quota check failed for resume generation, userId={}", userId, e);
+            throw e;
+        }
     }
 
     @Async
@@ -333,7 +333,7 @@ public class ResumeService {
             String result = generateResumeWithRagInternal(jobId, checkQuota);
             log.info("Async RAG resume generation finished for jobId={}, result={}", jobId, result);
         } catch (Exception e) {
-            log.error("Async RAG resume generation failed for jobId={}: {}", jobId, e.getMessage(), e);
+            log.error("Async RAG resume generation failed for jobId={}", jobId, e);
         }
     }
 
@@ -434,6 +434,7 @@ public class ResumeService {
                     aiResponse.getInputTokenCount(),
                     aiResponse.getOutputTokenCount()
             );
+            log.info("RAG generation for userId: {} succeeded, generation information stored into generation history.", userId);
 
             return "RAG Resume Generated";
         } catch (RuntimeException ex) {
@@ -518,7 +519,7 @@ public class ResumeService {
                 return aiResponse;
 
             } catch (Exception e) {
-                log.warn("LLM attempt {} failed: {}", attempt, e.getMessage());
+                log.warn("LLM attempt {} failed", attempt, e);
 
                 if (attempt == maxAttempts) {
                     throw new RuntimeException("Resume generation failed after " + maxAttempts + " attempts", e);

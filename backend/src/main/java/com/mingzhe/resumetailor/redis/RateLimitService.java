@@ -1,11 +1,13 @@
 package com.mingzhe.resumetailor.redis;
 
 import com.mingzhe.resumetailor.exceptions.TooManyRequestsException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class RateLimitService {
 
@@ -28,6 +30,7 @@ public class RateLimitService {
         if (count > limit) {
             throw new TooManyRequestsException("Too many requests. Please wait a moment and try again.");
         }
+        log.info("Rate limit checked for userId: {}", userId);
     }
 
     public long getCurrentCount(Long userId, String action) {
