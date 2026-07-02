@@ -3,7 +3,7 @@ const RESUMETAILOR_FRONTEND_URL_PATTERN = "http://localhost:5173/*";
 const MIN_VISIBLE_TEXT_LENGTH = 200;
 
 const backendBaseUrlInput = document.getElementById("backendBaseUrl");
-const jwtTokenInput = document.getElementById("jwtToken");
+const jwtTokenDisplay = document.getElementById("jwtTokenDisplay");
 const loadTokenButton = document.getElementById("loadTokenButton");
 const importButton = document.getElementById("importButton");
 const statusMessage = document.getElementById("statusMessage");
@@ -13,20 +13,18 @@ const previewLength = document.getElementById("previewLength");
 
 document.addEventListener("DOMContentLoaded", restoreSettings);
 backendBaseUrlInput.addEventListener("change", saveSettings);
-jwtTokenInput.addEventListener("change", saveSettings);
 loadTokenButton.addEventListener("click", loadTokenFromResumeTailorTab);
 importButton.addEventListener("click", importCurrentJob);
 
 async function restoreSettings() {
   const settings = await chrome.storage.local.get(["backendBaseUrl", "jwtToken"]);
   backendBaseUrlInput.value = settings.backendBaseUrl || DEFAULT_BACKEND_BASE_URL;
-  jwtTokenInput.value = normalizeJwtToken(settings.jwtToken || "");
+  updateTokenDisplay(settings.jwtToken || "");
 }
 
 async function saveSettings() {
   await chrome.storage.local.set({
     backendBaseUrl: normalizeBackendBaseUrl(backendBaseUrlInput.value),
-    jwtToken: normalizeJwtToken(jwtTokenInput.value),
   });
 }
 
@@ -53,8 +51,11 @@ async function loadTokenFromResumeTailorTab() {
       throw new Error("No token found in the ResumeTailor tab. Please log in first.");
     }
 
-    jwtTokenInput.value = token;
-    await saveSettings();
+    await chrome.storage.local.set({
+      backendBaseUrl: normalizeBackendBaseUrl(backendBaseUrlInput.value),
+      jwtToken: token,
+    });
+    updateTokenDisplay(token);
     setStatus("Token loaded from ResumeTailor tab.", "success");
   } catch (error) {
     setStatus(getReadableErrorMessage(error), "error");
@@ -130,7 +131,8 @@ function extractJobDescriptionFromVisibleText(value) {
 
 async function sendImportRequest(extracted) {
   const backendBaseUrl = normalizeBackendBaseUrl(backendBaseUrlInput.value);
-  const token = normalizeJwtToken(jwtTokenInput.value);
+  const settings = await chrome.storage.local.get(["jwtToken"]);
+  const token = normalizeJwtToken(settings.jwtToken || "");
   const headers = {
     "Content-Type": "application/json",
     "Accept": "application/json",
@@ -198,6 +200,23 @@ function normalizeJwtToken(value) {
   }
 
   return token;
+}
+
+function maskToken(value) {
+  const token = normalizeJwtToken(value);
+  if (!token) return "";
+
+  if (token.length <= 16) {
+    return `${token.slice(0, 4)}......${token.slice(-4)}`;
+  }
+
+  return `${token.slice(0, 10)}......${token.slice(-8)}`;
+}
+
+function updateTokenDisplay(value) {
+  const maskedToken = maskToken(value);
+  jwtTokenDisplay.textContent = maskedToken || "No token loaded";
+  jwtTokenDisplay.classList.toggle("has-token", Boolean(maskedToken));
 }
 
 function normalizeVisibleText(value) {

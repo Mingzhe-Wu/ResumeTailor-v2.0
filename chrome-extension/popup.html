@@ -26,16 +26,18 @@
           placeholder="http://localhost:8080"
         />
 
-        <label for="jwtToken">JWT Token</label>
-        <textarea
-          id="jwtToken"
-          rows="4"
-          placeholder="Paste a development JWT token here"
-        ></textarea>
+        <label for="jwtTokenDisplay">JWT Token</label>
+        <div
+          id="jwtTokenDisplay"
+          class="token-display"
+          aria-live="polite"
+        >
+          No token loaded
+        </div>
         <button id="loadTokenButton" class="secondary-button" type="button">
           Load Token from ResumeTailor Tab
         </button>
-        <p class="helper-text">Local development only. A safer auth flow should replace manual token entry later.</p>
+        <p class="helper-text">Local development only. The full token is stored in extension storage and is not shown here.</p>
       </section>
 
       <button id="importButton" class="primary-button" type="button">

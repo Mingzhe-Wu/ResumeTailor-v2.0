@@ -60,7 +60,7 @@ label {
 }
 
 input,
-textarea {
+.token-display {
   width: 100%;
   border: 1px solid #b9c8d8;
   border-radius: 10px;
@@ -76,15 +76,26 @@ input {
   padding: 9px 11px;
 }
 
-textarea {
-  padding: 10px 11px;
-  resize: vertical;
-}
-
-input:focus,
-textarea:focus {
+input:focus {
   border-color: #245d8f;
   box-shadow: 0 0 0 4px rgba(36, 93, 143, 0.14);
+}
+
+.token-display {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 9px 11px;
+  color: #6b7a90;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.token-display.has-token {
+  border-color: rgba(35, 120, 95, 0.3);
+  background: #f5fbf8;
+  color: #23785f;
 }
 
 .primary-button,

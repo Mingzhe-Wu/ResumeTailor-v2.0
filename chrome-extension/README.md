@@ -30,7 +30,7 @@ The side panel stores this value in Chrome local extension storage.
 
 ## JWT Token for Local Testing
 
-For the MVP, you can either paste a ResumeTailor JWT token into the side panel or click **Load Token from ResumeTailor Tab**.
+For the MVP, click **Load Token from ResumeTailor Tab** to load the current local ResumeTailor JWT.
 
 To load the token automatically:
 
@@ -52,12 +52,12 @@ The extension stores the loaded token in Chrome local extension storage and send
 Authorization: Bearer <token>
 ```
 
-Manual token entry and localStorage token loading are temporary and intended only for local development. A safer auth flow should replace them later.
+The side panel only displays a masked token preview. Manual token entry is intentionally disabled so the full token is not exposed in the UI. LocalStorage token loading is temporary and intended only for local development; a safer auth flow should replace it later.
 
 ## Test Importing a Job
 
 1. Start the ResumeTailor backend locally.
-2. Log in to ResumeTailor and load the JWT token from the open ResumeTailor tab, or paste a valid token manually.
+2. Log in to ResumeTailor and load the JWT token from the open ResumeTailor tab.
 3. Open a job posting page in Chrome, such as a LinkedIn job page that you can already view.
 4. If the LinkedIn job description is collapsed, click **more** in the JD before importing.
 5. Open the extension side panel.
@@ -101,4 +101,4 @@ Request body:
 - Does not bypass login walls, hidden content, anti-bot behavior, or unavailable page text.
 - The import uses the current visible active tab only and must be triggered by the user.
 - Company falls back to `Unknown` when it cannot be parsed from the page title.
-- Manual/localStorage JWT token handling is temporary and should be replaced by a safer authentication flow later.
+- LocalStorage JWT token loading is temporary and should be replaced by a safer authentication flow later.
