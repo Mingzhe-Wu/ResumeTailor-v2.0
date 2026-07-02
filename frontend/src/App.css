@@ -1596,6 +1596,12 @@ label {
   letter-spacing: 0;
 }
 
+.ats-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ats-summary {
   margin: 0;
   text-align: left;
@@ -1707,6 +1713,11 @@ label {
   background: #e7f2fb;
   border-color: #6f9fc4;
   outline: none;
+}
+
+.ats-add-skill-button {
+  margin-left: 0;
+  transform: translateY(-1px);
 }
 
 .pdf-exporting .ats-add-bullet-button,

@@ -125,6 +125,16 @@ export function appendEmptyBulletField(item) {
   };
 }
 
+export function appendEmptySkillItem(section) {
+  return {
+    ...section,
+    items: [
+      ...(Array.isArray(section.items) ? section.items : []),
+      { category: "", skills: [] },
+    ],
+  };
+}
+
 export function parseDelimitedListLike(originalValue, value, preferredSeparator) {
   if (!Array.isArray(originalValue)) {
     return value;
@@ -146,7 +156,9 @@ export function getSkillFieldName(item) {
 
 export function sanitizeResumeBulletFields(value) {
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeResumeBulletFields(item));
+    return value
+      .map((item) => sanitizeResumeBulletFields(item))
+      .filter((item) => !isEmptySkillItem(item));
   }
 
   if (!value || typeof value !== "object") {
@@ -165,6 +177,22 @@ export function sanitizeResumeBulletFields(value) {
       return [key, sanitizeResumeBulletFields(item)];
     })
   );
+}
+
+export function isEmptySkillItem(item) {
+  if (!item || typeof item !== "object" || !Object.prototype.hasOwnProperty.call(item, "category")) {
+    return false;
+  }
+
+  const skillField = ["skills", "names", "items", "name"].find((field) =>
+    Object.prototype.hasOwnProperty.call(item, field)
+  );
+  const skillValue = skillField ? item[skillField] : "";
+  const skillText = Array.isArray(skillValue)
+    ? skillValue.map((skill) => (typeof skill === "string" ? skill : skill?.name || skill?.label || "")).join("")
+    : String(skillValue || "");
+
+  return !String(item.category || "").trim() && !skillText.trim();
 }
 
 export function deepClone(value) {

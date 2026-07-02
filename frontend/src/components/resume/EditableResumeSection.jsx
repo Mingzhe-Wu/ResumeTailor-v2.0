@@ -2,7 +2,7 @@ import EditableEducationItem from "./EditableEducationItem.jsx";
 import EditableExperienceItem from "./EditableExperienceItem.jsx";
 import EditableProjectItem from "./EditableProjectItem.jsx";
 import EditableSkillItem from "./EditableSkillItem.jsx";
-import { getResumeSectionTitle } from "./resumeUtils.js";
+import { appendEmptySkillItem, getResumeSectionTitle, isEmptySkillItem } from "./resumeUtils.js";
 
 export default function EditableResumeSection({ section, onChange }) {
   const items = Array.isArray(section.items)
@@ -10,22 +10,37 @@ export default function EditableResumeSection({ section, onChange }) {
     : [];
   const type = String(section.type || "").toLowerCase();
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !type.includes("skill")) return null;
 
   const updateItem = (item, nextItem) => {
     onChange({
       ...section,
-      items: (section.items || []).map((sectionItem) =>
-        sectionItem === item || (item.id != null && sectionItem.id === item.id)
-          ? nextItem
-          : sectionItem
-      ),
+      items: (section.items || [])
+        .map((sectionItem) =>
+          sectionItem === item || (item.id != null && sectionItem.id === item.id)
+            ? nextItem
+            : sectionItem
+        )
+        .filter((sectionItem) => !(type.includes("skill") && isEmptySkillItem(sectionItem))),
     });
   };
 
   return (
     <section className="ats-section">
-      <h2>{section.title || getResumeSectionTitle(type)}</h2>
+      <h2 className="ats-section-heading">
+        <span>{section.title || getResumeSectionTitle(type)}</span>
+        {type.includes("skill") && (
+          <button
+            type="button"
+            className="ats-add-bullet-button ats-add-skill-button"
+            onClick={() => onChange(appendEmptySkillItem(section))}
+            aria-label="Add skill category"
+            title="Add skill category"
+          >
+            +
+          </button>
+        )}
+      </h2>
 
       {type.includes("experience") && items.map((item, index) => (
         <EditableExperienceItem
