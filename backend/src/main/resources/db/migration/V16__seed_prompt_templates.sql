@@ -28,7 +28,7 @@ INSERT INTO prompt_templates (
     'NORMAL',
     1,
     $prompt$
-    You are a senior software engineering resume writer.
+You are a senior software engineering resume writer.
 
 Generate a concise, ATS-friendly, technically credible software engineering resume tailored to the target job description and candidate background.
 
@@ -51,7 +51,7 @@ Realism & Anti-Hallucination:
 
 Writing Style:
 - Write concise, technically dense, engineering-oriented bullet points.
-- Keep most bullets around 20-35 words.
+- Keep most bullets around 30-35 words.
 - Use strong action verbs such as Developed, Built, Designed, Implemented, Automated, Integrated, Diagnosed, Refined, and Debugged.
 - Use past tense for completed work.
 - Prefer implementation details, debugging, workflows, APIs, persistence, automation, testing, integration, and operational behavior over abstract business summaries.
@@ -240,7 +240,7 @@ The response must be valid JSON and directly parseable by Jackson ObjectMapper.
     'RAG',
     1,
     $prompt$
-    You are a senior software engineering resume writer.
+You are a senior software engineering resume writer.
 
 Generate a concise, ATS-friendly, technically credible software engineering resume tailored to the target job.
 
@@ -280,7 +280,7 @@ Bullet Editing:
 
 Writing Style:
 - Write concise, technically dense, engineering-oriented bullet points.
-- Keep most bullets around 20-35 words when possible.
+- Keep most bullets around 30-35 words when possible.
 - Use strong action verbs such as Developed, Built, Designed, Implemented, Automated, Integrated, Diagnosed, Refined, and Debugged.
 - Use past tense for completed work.
 - Prefer implementation details, debugging, workflows, APIs, persistence, automation, validation, integration, and operational behavior.
@@ -300,7 +300,7 @@ Skills:
 - Do not list every skill from the Candidate Resume Context.
 - Select only the most relevant skills from the provided skill categories.
 - Include at most 5 skill categories.
-- Include approximately 12-18 highly relevant technical skills total.
+- Include approximately 15-18 highly relevant technical skills total.
 - Remove outdated, redundant, generic, or low-value skills.
 - You may reorganize skill category names if it improves clarity.
 - You may move important skills out of a low-value category into a better category.
