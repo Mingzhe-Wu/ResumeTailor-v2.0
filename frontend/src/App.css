@@ -1679,6 +1679,11 @@ label {
   overflow-wrap: normal;
 }
 
+.ats-experience-position {
+  font-style: italic;
+  font-weight: 400;
+}
+
 .ats-item-date {
   flex-shrink: 0;
   color: #374151;

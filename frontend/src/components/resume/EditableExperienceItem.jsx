@@ -14,19 +14,21 @@ export default function EditableExperienceItem({ item, onChange }) {
   return (
     <div className="ats-item">
       <div className="ats-item-heading">
-        <strong className="ats-item-title">
+        <div className="ats-item-title">
           <EditableText
             value={company || ""}
             placeholder="Company"
             onSave={(value) => onChange(updateFirstExistingField(item, ["company", "companyName"], value))}
           />
           <span className="ats-inline-separator"> | </span>
-          <EditableText
-            value={title || ""}
-            placeholder="Title"
-            onSave={(value) => onChange(updateFirstExistingField(item, ["title", "position", "role"], value))}
-          />
-        </strong>
+          <span className="ats-experience-position">
+            <EditableText
+              value={title || ""}
+              placeholder="Title"
+              onSave={(value) => onChange(updateFirstExistingField(item, ["title", "position", "role"], value))}
+            />
+          </span>
+        </div>
         <span className="ats-item-date">
           <EditableText
             value={formatDateRange(item.startDate, item.endDate)}
