@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ResumeTailor Job Importer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <h1>ResumeTailor Job Importer</h1>
+        <p>Import the visible job posting page into your local ResumeTailor app.</p>
+      </header>
+
+      <aside class="jd-reminder" aria-label="LinkedIn import reminder">
+        Before importing from LinkedIn, click <strong>more</strong> in the job description so the full JD is visible.
+      </aside>
+
+      <section class="form-section" aria-label="Import settings">
+        <label for="backendBaseUrl">Backend Base URL</label>
+        <input
+          id="backendBaseUrl"
+          type="url"
+          value="http://localhost:8080"
+          placeholder="http://localhost:8080"
+        />
+
+        <label for="jwtToken">JWT Token</label>
+        <textarea
+          id="jwtToken"
+          rows="4"
+          placeholder="Paste a development JWT token here"
+        ></textarea>
+        <button id="loadTokenButton" class="secondary-button" type="button">
+          Load Token from ResumeTailor Tab
+        </button>
+        <p class="helper-text">Local development only. A safer auth flow should replace manual token entry later.</p>
+      </section>
+
+      <button id="importButton" class="primary-button" type="button">
+        Import Current Job
+      </button>
+
+      <p id="statusMessage" class="status-message" role="status"></p>
+
+      <section class="preview-card" aria-label="Extraction preview">
+        <h2>Preview</h2>
+        <dl>
+          <div>
+            <dt>Title</dt>
+            <dd id="previewTitle">Not imported yet</dd>
+          </div>
+          <div>
+            <dt>URL</dt>
+            <dd id="previewUrl">Not imported yet</dd>
+          </div>
+          <div>
+            <dt>Text Length</dt>
+            <dd id="previewLength">0 characters</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

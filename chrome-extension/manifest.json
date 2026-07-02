@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "ResumeTailor Job Importer",
+  "version": "0.1.0",
+  "description": "Import the currently opened job posting page into ResumeTailor.",
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost:8080/*",
+    "http://localhost:5173/*",
+    "https://www.linkedin.com/*"
+  ],
+  "action": {
+    "default_title": "ResumeTailor Job Importer"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  }
+}

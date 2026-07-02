@@ -15,8 +15,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -66,25 +66,33 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-
-        // Docker and local development can run the frontend on different ports,
-        // so allowed origins stay environment-configurable.
-        config.setAllowedOrigins(
+        List<String> allowedOriginPatterns = new ArrayList<>(
                 List.of(allowedOrigins.split(","))
                         .stream()
                         .map(String::trim)
                         .filter(origin -> !origin.isBlank())
                         .toList()
         );
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        config.setAllowCredentials(true);
+        allowedOriginPatterns.add("http://localhost:*");
+        allowedOriginPatterns.add("http://127.0.0.1:*");
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        return request -> {
+            CorsConfiguration config = new CorsConfiguration();
+            String origin = request.getHeader("Origin");
 
-        return source;
+            // Spring's origin pattern matching is not reliable for extension
+            // schemes in all environments, so reflect only chrome-extension://
+            // origins explicitly during local development.
+            if (origin != null && origin.startsWith("chrome-extension://")) {
+                config.addAllowedOrigin(origin);
+            }
+
+            config.setAllowedOriginPatterns(allowedOriginPatterns);
+            config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+            config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin"));
+            config.setAllowCredentials(true);
+            return config;
+        };
     }
 
     @Bean

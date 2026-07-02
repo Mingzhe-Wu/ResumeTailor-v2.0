@@ -1,0 +1,208 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: #f3f6fa;
+  color: #162033;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+}
+
+.popup-shell {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.popup-header {
+  display: grid;
+  gap: 6px;
+}
+
+.popup-header h1 {
+  margin: 0;
+  color: #17486f;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.popup-header p,
+.helper-text {
+  margin: 0;
+  color: #6b7a90;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.jd-reminder {
+  border: 1px solid rgba(138, 90, 0, 0.22);
+  border-radius: 12px;
+  background: #fff8e8;
+  color: #715000;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.form-section {
+  display: grid;
+  gap: 7px;
+}
+
+label {
+  color: #3d4d63;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #b9c8d8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #162033;
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+}
+
+input {
+  min-height: 40px;
+  padding: 9px 11px;
+}
+
+textarea {
+  padding: 10px 11px;
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #245d8f;
+  box-shadow: 0 0 0 4px rgba(36, 93, 143, 0.14);
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 42px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.primary-button {
+  border: none;
+  background: #245d8f;
+  color: #ffffff;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #17486f;
+  box-shadow: 0 8px 20px rgba(22, 32, 51, 0.08);
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  border: 1px solid #b9c8d8;
+  background: #ffffff;
+  color: #17486f;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #eef6ff;
+  border-color: #8fb0cc;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status-message {
+  min-height: 20px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.status-message:empty {
+  display: none;
+}
+
+.status-message.info {
+  border-color: #dbe4ee;
+  background: #ffffff;
+  color: #3d4d63;
+}
+
+.status-message.success {
+  border-color: rgba(35, 120, 95, 0.24);
+  background: #edf8f3;
+  color: #23785f;
+}
+
+.status-message.warning {
+  border-color: rgba(138, 90, 0, 0.24);
+  background: #fff8e8;
+  color: #8a5a00;
+}
+
+.status-message.error {
+  border-color: rgba(180, 35, 24, 0.24);
+  background: #fff4f4;
+  color: #b42318;
+}
+
+.preview-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 13px;
+}
+
+.preview-card h2 {
+  margin: 0;
+  color: #162033;
+  font-size: 14px;
+}
+
+dl {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+}
+
+dl div {
+  display: grid;
+  gap: 3px;
+}
+
+dt {
+  color: #6b7a90;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+dd {
+  min-width: 0;
+  margin: 0;
+  color: #162033;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
