@@ -1684,6 +1684,38 @@ label {
   font-weight: 400;
 }
 
+.ats-add-bullet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border: 1px solid #9ebbd3;
+  border-radius: 999px;
+  background: #f7fbff;
+  color: #245d8f;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.ats-add-bullet-button:hover,
+.ats-add-bullet-button:focus-visible {
+  background: #e7f2fb;
+  border-color: #6f9fc4;
+  outline: none;
+}
+
+.pdf-exporting .ats-add-bullet-button,
+.exporting-pdf .ats-add-bullet-button,
+.pdf-exporting .ats-bullet-empty,
+.exporting-pdf .ats-bullet-empty {
+  display: none;
+}
+
 .ats-item-date {
   flex-shrink: 0;
   color: #374151;

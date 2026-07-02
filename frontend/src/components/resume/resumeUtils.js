@@ -1,15 +1,15 @@
-export function normalizeBullets(value) {
+export function normalizeBullets(value, { includeEmpty = false } = {}) {
   if (Array.isArray(value)) {
     return value
       .map((item) => (typeof item === "string" ? item : item?.content || item?.text || ""))
-      .filter(Boolean);
+      .filter((item) => includeEmpty || item);
   }
 
   if (typeof value === "string") {
     return value
       .split(/\r?\n/)
       .map((line) => line.replace(/^[-*]\s*/, "").trim())
-      .filter(Boolean);
+      .filter((item) => includeEmpty || item);
   }
 
   return [];
@@ -104,10 +104,22 @@ export function updateBulletField(item, bullets) {
     Object.prototype.hasOwnProperty.call(item, name)
   ) || "bullets";
   const existingValue = item[field];
+  const cleanedBullets = bullets.map((bullet) => bullet.trim()).filter(Boolean);
 
   return {
     ...item,
-    [field]: Array.isArray(existingValue) ? bullets : bullets.join("\n"),
+    [field]: Array.isArray(existingValue) ? cleanedBullets : cleanedBullets.join("\n"),
+  };
+}
+
+export function appendEmptyBulletField(item) {
+  const field = ["bullets", "details", "description", "relevantCoursework"].find((name) =>
+    Object.prototype.hasOwnProperty.call(item, name)
+  ) || "bullets";
+
+  return {
+    ...item,
+    [field]: [...normalizeBullets(item[field], { includeEmpty: true }), ""],
   };
 }
 
@@ -128,6 +140,27 @@ export function getSkillFieldName(item) {
   return ["skills", "names", "items", "name"].find((field) =>
     Object.prototype.hasOwnProperty.call(item, field)
   ) || "skills";
+}
+
+export function sanitizeResumeBulletFields(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeResumeBulletFields(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => {
+      if (["bullets", "details", "description", "relevantCoursework"].includes(key)) {
+        const cleanedBullets = normalizeBullets(item);
+        return [key, Array.isArray(item) ? cleanedBullets : cleanedBullets.join("\n")];
+      }
+
+      return [key, sanitizeResumeBulletFields(item)];
+    })
+  );
 }
 
 export function deepClone(value) {

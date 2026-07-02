@@ -1,6 +1,7 @@
 import EditableBulletList from "./EditableBulletList.jsx";
 import EditableText from "./EditableText.jsx";
 import {
+  appendEmptyBulletField,
   formatDateRange,
   formatDelimitedList,
   parseDelimitedListLike,
@@ -22,6 +23,15 @@ export default function EditableProjectItem({ item, onChange }) {
             placeholder="Project name"
             onSave={(value) => onChange(updateFirstExistingField(item, ["name", "projectName"], value))}
           />
+          <button
+            type="button"
+            className="ats-add-bullet-button"
+            onClick={() => onChange(appendEmptyBulletField(item))}
+            aria-label="Add bullet to this project"
+            title="Add bullet"
+          >
+            +
+          </button>
         </strong>
         <span className="ats-item-date">
           <EditableText

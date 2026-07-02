@@ -12,6 +12,7 @@ import {
   buildResumePdfFilename,
   deepClone,
   getResumeSectionKey,
+  sanitizeResumeBulletFields,
 } from "./components/resume/resumeUtils.js";
 import "./App.css";
 
@@ -509,15 +510,17 @@ function App() {
 
     try {
       setResumePanelError("");
+      const cleanedResumeContent = sanitizeResumeBulletFields(resumeContent);
 
       await api.put(`/api/resume/update/${generatedResume.id}`, {
-        generatedContent: JSON.stringify(resumeContent),
+        generatedContent: JSON.stringify(cleanedResumeContent),
       });
 
       setResumeVersion(selectedResumeMethod, {
         ...generatedResume,
-        generatedContent: deepClone(resumeContent),
+        generatedContent: deepClone(cleanedResumeContent),
       });
+      setResumeContent(deepClone(cleanedResumeContent));
       showToast("Generated resume saved.");
     } catch (err) {
       showApiErrorToast(err, "Failed to save resume.");

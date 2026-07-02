@@ -1,6 +1,7 @@
 import EditableBulletList from "./EditableBulletList.jsx";
 import EditableText from "./EditableText.jsx";
 import {
+  appendEmptyBulletField,
   formatDateRange,
   updateBulletField,
   updateDateRangeFields,
@@ -28,6 +29,15 @@ export default function EditableExperienceItem({ item, onChange }) {
               onSave={(value) => onChange(updateFirstExistingField(item, ["title", "position", "role"], value))}
             />
           </span>
+          <button
+            type="button"
+            className="ats-add-bullet-button"
+            onClick={() => onChange(appendEmptyBulletField(item))}
+            aria-label="Add bullet to this experience"
+            title="Add bullet"
+          >
+            +
+          </button>
         </div>
         <span className="ats-item-date">
           <EditableText

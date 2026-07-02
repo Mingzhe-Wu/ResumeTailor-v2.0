@@ -1,6 +1,7 @@
 import EditableBulletList from "./EditableBulletList.jsx";
 import EditableText from "./EditableText.jsx";
 import {
+  appendEmptyBulletField,
   formatDateRange,
   updateBulletField,
   updateEducationDetailFields,
@@ -27,6 +28,15 @@ export default function EditableEducationItem({ item, onChange }) {
             placeholder="School"
             onSave={(value) => onChange(updateFirstExistingField(item, ["school", "schoolName"], value))}
           />
+          <button
+            type="button"
+            className="ats-add-bullet-button"
+            onClick={() => onChange(appendEmptyBulletField(item))}
+            aria-label="Add bullet to this education"
+            title="Add bullet"
+          >
+            +
+          </button>
         </strong>
         <span className="ats-item-date">
           <EditableText
