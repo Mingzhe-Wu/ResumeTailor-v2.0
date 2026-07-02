@@ -17,7 +17,8 @@
         Before importing from LinkedIn, click <strong>more</strong> in the job description so the full JD is visible.
       </aside>
 
-      <section class="form-section" aria-label="Import settings">
+      <section class="panel-section form-section" aria-label="Backend settings">
+        <h2>Connection</h2>
         <label for="backendBaseUrl">Backend Base URL</label>
         <input
           id="backendBaseUrl"
@@ -25,8 +26,34 @@
           value="http://localhost:8080"
           placeholder="http://localhost:8080"
         />
+      </section>
 
-        <label for="jwtTokenDisplay">JWT Token</label>
+      <section class="panel-section form-section" aria-label="Extension authentication">
+        <div class="section-title-row">
+          <h2>Extension Login</h2>
+          <span id="loginStatusBadge" class="login-status-badge">Not logged in</span>
+        </div>
+        <label for="loginEmail">Email</label>
+        <input
+          id="loginEmail"
+          type="email"
+          autocomplete="username"
+          placeholder="you@example.com"
+        />
+
+        <label for="loginPassword">Password</label>
+        <input
+          id="loginPassword"
+          type="password"
+          autocomplete="current-password"
+          placeholder="ResumeTailor password"
+        />
+
+        <button id="loginButton" class="secondary-button" type="button">
+          Login to ResumeTailor
+        </button>
+
+        <label for="jwtTokenDisplay">Extension Token</label>
         <div
           id="jwtTokenDisplay"
           class="token-display"
@@ -34,19 +61,29 @@
         >
           No token loaded
         </div>
-        <button id="loadTokenButton" class="secondary-button" type="button">
-          Load Token from ResumeTailor Tab
+        <button id="logoutButton" class="secondary-button subtle-button" type="button">
+          Clear Extension Token
         </button>
-        <p class="helper-text">Local development only. The full token is stored in extension storage and is not shown here.</p>
       </section>
 
-      <button id="importButton" class="primary-button" type="button">
-        Import Current Job
-      </button>
+      <section class="panel-section import-section" aria-label="Job import action">
+        <h2>Import</h2>
+        <button id="importButton" class="primary-button" type="button">
+          Import Current Job
+        </button>
+        <label for="defaultJobStatus">Default Job Status</label>
+        <select id="defaultJobStatus">
+          <option value="1">Saved</option>
+          <option value="2">Applied</option>
+          <option value="3">Interview</option>
+          <option value="4">Offer</option>
+          <option value="5">Rejected</option>
+        </select>
+      </section>
 
       <p id="statusMessage" class="status-message" role="status"></p>
 
-      <section class="preview-card" aria-label="Extraction preview">
+      <section class="panel-section preview-card" aria-label="Extraction preview">
         <h2>Preview</h2>
         <dl>
           <div>

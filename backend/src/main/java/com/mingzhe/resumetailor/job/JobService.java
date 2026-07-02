@@ -81,6 +81,7 @@ public class JobService {
         createJobRequest.setCompany(resolveImportedCompany(request.getCompany()));
         createJobRequest.setSourceUrl(limitLength(normalizeSourceUrl(request.getSourceUrl()), JOB_SOURCE_URL_MAX_LENGTH));
         createJobRequest.setJobDescription(request.getDescription());
+        createJobRequest.setStatus(request.getStatus());
 
         return createJob(createJobRequest);
     }

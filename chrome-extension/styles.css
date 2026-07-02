@@ -37,6 +37,45 @@ body {
   line-height: 1.45;
 }
 
+.panel-section {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid #dbe4ee;
+  padding-top: 14px;
+}
+
+.panel-section h2 {
+  margin: 0;
+  color: #17486f;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.login-status-badge {
+  flex-shrink: 0;
+  border: 1px solid #dbe4ee;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #6b7a90;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.login-status-badge.logged-in {
+  border-color: rgba(35, 120, 95, 0.28);
+  background: #edf8f3;
+  color: #23785f;
+}
+
 .jd-reminder {
   border: 1px solid rgba(138, 90, 0, 0.22);
   border-radius: 12px;
@@ -53,6 +92,10 @@ body {
   gap: 7px;
 }
 
+.import-section {
+  gap: 10px;
+}
+
 label {
   color: #3d4d63;
   font-size: 12px;
@@ -60,6 +103,7 @@ label {
 }
 
 input,
+select,
 .token-display {
   width: 100%;
   border: 1px solid #b9c8d8;
@@ -76,7 +120,14 @@ input {
   padding: 9px 11px;
 }
 
-input:focus {
+select {
+  min-height: 40px;
+  padding: 9px 11px;
+  cursor: pointer;
+}
+
+input:focus,
+select:focus {
   border-color: #245d8f;
   box-shadow: 0 0 0 4px rgba(36, 93, 143, 0.14);
 }
@@ -129,6 +180,13 @@ input:focus {
 .secondary-button:hover:not(:disabled) {
   background: #eef6ff;
   border-color: #8fb0cc;
+}
+
+.subtle-button {
+  min-height: 36px;
+  color: #526276;
+  font-size: 12px;
+  font-weight: 750;
 }
 
 .primary-button:disabled,

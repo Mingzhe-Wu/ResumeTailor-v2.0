@@ -28,40 +28,38 @@ Backend Base URL: http://localhost:8080
 
 The side panel stores this value in Chrome local extension storage.
 
-## JWT Token for Local Testing
+## Extension Login
 
-For the MVP, click **Load Token from ResumeTailor Tab** to load the current local ResumeTailor JWT.
+The extension logs in separately from the ResumeTailor web app.
 
-To load the token automatically:
+To authenticate the extension:
 
-1. Open ResumeTailor at `http://localhost:5173`.
-2. Log in.
-3. Keep that tab open.
-4. Open the extension side panel from any tab.
-5. Click **Load Token from ResumeTailor Tab**.
+1. Open the extension side panel.
+2. Enter your ResumeTailor email and password.
+3. Click **Login to ResumeTailor**.
 
-The extension looks for an open `http://localhost:5173/*` tab and reads:
+The extension calls:
 
-```js
-localStorage.getItem("token")
+```text
+POST http://localhost:8080/api/auth/login
 ```
 
-The extension stores the loaded token in Chrome local extension storage and sends it as:
+It stores the returned JWT in Chrome local extension storage and sends imports as:
 
 ```text
 Authorization: Bearer <token>
 ```
 
-The side panel only displays a masked token preview. Manual token entry is intentionally disabled so the full token is not exposed in the UI. LocalStorage token loading is temporary and intended only for local development; a safer auth flow should replace it later.
+The side panel only displays a masked token preview. Manual token entry is intentionally disabled so the full token is not exposed in the UI. This extension token is separate from the web app's localStorage token.
 
 ## Test Importing a Job
 
 1. Start the ResumeTailor backend locally.
-2. Log in to ResumeTailor and load the JWT token from the open ResumeTailor tab.
+2. Log in from the extension side panel.
 3. Open a job posting page in Chrome, such as a LinkedIn job page that you can already view.
 4. If the LinkedIn job description is collapsed, click **more** in the JD before importing.
 5. Open the extension side panel.
-6. Confirm the backend URL and token.
+6. Confirm the backend URL, extension login state, and default job status.
 7. Click **Import Current Job**.
 
 The extension extracts:
@@ -87,7 +85,8 @@ Request body:
   "title": "Page title",
   "company": "Company name",
   "sourceUrl": "https://example.com/job",
-  "description": "Visible page text"
+  "description": "Visible page text",
+  "status": 1
 }
 ```
 
@@ -101,4 +100,4 @@ Request body:
 - Does not bypass login walls, hidden content, anti-bot behavior, or unavailable page text.
 - The import uses the current visible active tab only and must be triggered by the user.
 - Company falls back to `Unknown` when it cannot be parsed from the page title.
-- LocalStorage JWT token loading is temporary and should be replaced by a safer authentication flow later.
+- The extension stores a separate local JWT for MVP development.

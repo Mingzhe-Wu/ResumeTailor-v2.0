@@ -113,7 +113,9 @@ export default function EditableResumePreview({
 
       {resume.summary?.visible !== false && (
         <section className="ats-section">
-          <h2>Summary</h2>
+          <h2 className="ats-section-heading">
+            <span>Summary</span>
+          </h2>
           <EditableText
             as="p"
             className="ats-summary"

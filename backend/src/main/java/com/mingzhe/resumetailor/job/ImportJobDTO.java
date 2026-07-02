@@ -16,6 +16,8 @@ public class ImportJobDTO {
 
     private String sourceUrl;
 
+    private Integer status;
+
     @NotBlank(message = "description is required")
     private String description;
 

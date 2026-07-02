@@ -1,11 +1,15 @@
 const DEFAULT_BACKEND_BASE_URL = "http://localhost:8080";
-const RESUMETAILOR_FRONTEND_URL_PATTERN = "http://localhost:5173/*";
 const MIN_VISIBLE_TEXT_LENGTH = 200;
 
 const backendBaseUrlInput = document.getElementById("backendBaseUrl");
+const loginEmailInput = document.getElementById("loginEmail");
+const loginPasswordInput = document.getElementById("loginPassword");
+const loginButton = document.getElementById("loginButton");
+const logoutButton = document.getElementById("logoutButton");
 const jwtTokenDisplay = document.getElementById("jwtTokenDisplay");
-const loadTokenButton = document.getElementById("loadTokenButton");
+const loginStatusBadge = document.getElementById("loginStatusBadge");
 const importButton = document.getElementById("importButton");
+const defaultJobStatusSelect = document.getElementById("defaultJobStatus");
 const statusMessage = document.getElementById("statusMessage");
 const previewTitle = document.getElementById("previewTitle");
 const previewUrl = document.getElementById("previewUrl");
@@ -13,55 +17,76 @@ const previewLength = document.getElementById("previewLength");
 
 document.addEventListener("DOMContentLoaded", restoreSettings);
 backendBaseUrlInput.addEventListener("change", saveSettings);
-loadTokenButton.addEventListener("click", loadTokenFromResumeTailorTab);
+loginEmailInput.addEventListener("change", saveSettings);
+loginButton.addEventListener("click", loginToResumeTailor);
+logoutButton.addEventListener("click", clearExtensionToken);
 importButton.addEventListener("click", importCurrentJob);
+defaultJobStatusSelect.addEventListener("change", saveSettings);
 
 async function restoreSettings() {
-  const settings = await chrome.storage.local.get(["backendBaseUrl", "jwtToken"]);
+  const settings = await chrome.storage.local.get(["backendBaseUrl", "loginEmail", "jwtToken", "defaultJobStatus"]);
   backendBaseUrlInput.value = settings.backendBaseUrl || DEFAULT_BACKEND_BASE_URL;
+  loginEmailInput.value = settings.loginEmail || "";
+  defaultJobStatusSelect.value = settings.defaultJobStatus || "1";
   updateTokenDisplay(settings.jwtToken || "");
 }
 
 async function saveSettings() {
   await chrome.storage.local.set({
     backendBaseUrl: normalizeBackendBaseUrl(backendBaseUrlInput.value),
+    loginEmail: loginEmailInput.value.trim(),
+    defaultJobStatus: defaultJobStatusSelect.value,
   });
 }
 
-async function loadTokenFromResumeTailorTab() {
-  setStatus("Looking for an open ResumeTailor tab...", "info");
-  setLoadTokenButtonLoading(true);
+async function loginToResumeTailor() {
+  setStatus("Logging in to ResumeTailor...", "info");
+  setLoginButtonLoading(true);
 
   try {
-    const [resumeTailorTab] = await chrome.tabs.query({
-      url: RESUMETAILOR_FRONTEND_URL_PATTERN,
+    await saveSettings();
+    const response = await fetch(`${normalizeBackendBaseUrl(backendBaseUrlInput.value)}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        email: loginEmailInput.value.trim(),
+        password: loginPasswordInput.value,
+      }),
     });
 
-    if (!resumeTailorTab?.id) {
-      throw new Error("Open ResumeTailor at http://localhost:5173 first, then try again.");
+    if (!response.ok) {
+      const message = await readErrorMessage(response);
+      throw new Error(message || `Login failed with status ${response.status}.`);
     }
 
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId: resumeTailorTab.id },
-      func: () => localStorage.getItem("token") || "",
-    });
-
-    const token = normalizeJwtToken(result?.result || "");
+    const data = await response.json();
+    const token = normalizeJwtToken(data.token || "");
     if (!token) {
-      throw new Error("No token found in the ResumeTailor tab. Please log in first.");
+      throw new Error("Login succeeded but no token was returned.");
     }
 
     await chrome.storage.local.set({
       backendBaseUrl: normalizeBackendBaseUrl(backendBaseUrlInput.value),
+      loginEmail: loginEmailInput.value.trim(),
       jwtToken: token,
     });
+    loginPasswordInput.value = "";
     updateTokenDisplay(token);
-    setStatus("Token loaded from ResumeTailor tab.", "success");
+    setStatus("Extension login successful.", "success");
   } catch (error) {
     setStatus(getReadableErrorMessage(error), "error");
   } finally {
-    setLoadTokenButtonLoading(false);
+    setLoginButtonLoading(false);
   }
+}
+
+async function clearExtensionToken() {
+  await chrome.storage.local.remove("jwtToken");
+  updateTokenDisplay("");
+  setStatus("Extension token cleared.", "info");
 }
 
 async function importCurrentJob() {
@@ -133,6 +158,10 @@ async function sendImportRequest(extracted) {
   const backendBaseUrl = normalizeBackendBaseUrl(backendBaseUrlInput.value);
   const settings = await chrome.storage.local.get(["jwtToken"]);
   const token = normalizeJwtToken(settings.jwtToken || "");
+  if (!token) {
+    throw new Error("Please login to ResumeTailor in the extension first.");
+  }
+
   const headers = {
     "Content-Type": "application/json",
     "Accept": "application/json",
@@ -150,6 +179,7 @@ async function sendImportRequest(extracted) {
       company: extracted.company,
       sourceUrl: extracted.sourceUrl,
       description: extracted.description,
+      status: Number(defaultJobStatusSelect.value),
     }),
   });
 
@@ -217,6 +247,8 @@ function updateTokenDisplay(value) {
   const maskedToken = maskToken(value);
   jwtTokenDisplay.textContent = maskedToken || "No token loaded";
   jwtTokenDisplay.classList.toggle("has-token", Boolean(maskedToken));
+  loginStatusBadge.textContent = maskedToken ? "Logged in" : "Not logged in";
+  loginStatusBadge.classList.toggle("logged-in", Boolean(maskedToken));
 }
 
 function normalizeVisibleText(value) {
@@ -243,11 +275,11 @@ function setButtonLoading(isLoading) {
   importButton.textContent = isLoading ? "Importing..." : "Import Current Job";
 }
 
-function setLoadTokenButtonLoading(isLoading) {
-  loadTokenButton.disabled = isLoading;
-  loadTokenButton.textContent = isLoading
-    ? "Loading Token..."
-    : "Load Token from ResumeTailor Tab";
+function setLoginButtonLoading(isLoading) {
+  loginButton.disabled = isLoading;
+  loginButton.textContent = isLoading
+    ? "Logging in..."
+    : "Login to ResumeTailor";
 }
 
 async function readErrorMessage(response) {
