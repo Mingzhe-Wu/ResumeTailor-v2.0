@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.redis.RedisCacheService;
 import com.mingzhe.resumetailor.redis.RedisKeyConstants;
+import com.mingzhe.resumetailor.resume.ResumeGenerationMethod;
+import com.mingzhe.resumetailor.resume.ResumeMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -17,15 +19,18 @@ public class PromptTemplateService {
     private static final Duration EFFECTIVE_PROMPT_CACHE_TTL = Duration.ofMinutes(10);
 
     private final PromptTemplateMapper promptTemplateMapper;
+    private final ResumeMapper resumeMapper;
     private final RedisCacheService redisCacheService;
     private final ObjectMapper objectMapper;
 
     public PromptTemplateService(
             PromptTemplateMapper promptTemplateMapper,
+            ResumeMapper resumeMapper,
             RedisCacheService redisCacheService,
             ObjectMapper objectMapper
     ) {
         this.promptTemplateMapper = promptTemplateMapper;
+        this.resumeMapper = resumeMapper;
         this.redisCacheService = redisCacheService;
         this.objectMapper = objectMapper;
     }
@@ -90,6 +95,7 @@ public class PromptTemplateService {
         }
 
         evictEffectivePromptCache(userId, type);
+        markExistingResumesDirtyForPromptChange(userId, type);
         return promptTemplateMapper.findUserPromptByType(userId, type.name());
     }
 
@@ -99,6 +105,7 @@ public class PromptTemplateService {
 
         promptTemplateMapper.deleteUserPrompt(userId, type.name());
         evictEffectivePromptCache(userId, type);
+        markExistingResumesDirtyForPromptChange(userId, type);
     }
 
     private PromptTemplate readEffectivePromptFromCache(String cacheKey) {
@@ -147,6 +154,21 @@ public class PromptTemplateService {
         } catch (Exception e) {
             log.warn("Failed to evict effective prompt cache for key={}.", cacheKey, e);
         }
+    }
+
+    private void markExistingResumesDirtyForPromptChange(Long userId, PromptTemplateType type) {
+        if (type != PromptTemplateType.NORMAL && type != PromptTemplateType.RAG) {
+            return;
+        }
+
+        ResumeGenerationMethod generationMethod = ResumeGenerationMethod.valueOf(type.name());
+        int dirtyCount = resumeMapper.markResumeDirtyByUserIdAndGenerationMethod(userId, generationMethod);
+        log.info(
+                "Marked {} {} resume version(s) dirty after prompt template change for userId={}.",
+                dirtyCount,
+                generationMethod,
+                userId
+        );
     }
 
     private void validateUserId(Long userId) {

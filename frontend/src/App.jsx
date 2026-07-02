@@ -286,6 +286,9 @@ function App() {
         showToast(backendMessage, err?.response?.status === 429 ? "warning" : "danger");
         setResumePanelError(backendMessage);
       }
+      setResumeLoading(false);
+      setGeneratingJobId(null);
+      setGeneratingResumeMethod(null);
     }
   };
 

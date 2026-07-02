@@ -118,6 +118,20 @@ public interface ResumeMapper {
         FROM jobs j
         WHERE rv.job_id = j.id
           AND j.user_id = #{userId}
+          AND rv.generation_method = CAST(#{generationMethod} AS resume_generation_method)
+        """)
+    int markResumeDirtyByUserIdAndGenerationMethod(
+            @Param("userId") Long userId,
+            @Param("generationMethod") ResumeGenerationMethod generationMethod
+    );
+
+    @Update("""
+        UPDATE resume_versions rv
+        SET need_generate = TRUE,
+            updated_at = NOW()
+        FROM jobs j
+        WHERE rv.job_id = j.id
+          AND j.user_id = #{userId}
         """)
     int markResumeDirtyByUserId(Long userId);
 

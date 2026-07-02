@@ -48,7 +48,12 @@ public interface GenerationHistoryMapper {
         UPDATE generation_history
         SET status = #{status},
             resume_version_id = #{resumeVersionId},
-            prompt_template_id = #{promptTemplateId},
+            prompt_template_id = CASE
+                WHEN #{promptTemplateId} IS NOT NULL
+                 AND EXISTS (SELECT 1 FROM prompt_templates WHERE id = #{promptTemplateId})
+                THEN #{promptTemplateId}
+                ELSE NULL
+            END,
             error_message = #{errorMessage},
             input_token_count = #{inputTokenCount},
             output_token_count = #{outputTokenCount},
