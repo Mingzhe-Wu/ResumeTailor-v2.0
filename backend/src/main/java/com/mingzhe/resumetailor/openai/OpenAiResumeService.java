@@ -22,7 +22,7 @@ public class OpenAiResumeService {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiResumeService.class);
 
-    // get api key from system environment to avoid risky behaviors
+    // Keep the API key outside application config files and Docker images.
     private final String apiKey = System.getenv("OPENAI_API_KEY");
     private static final String MODEL_NAME = "gpt-5.5";
 
@@ -38,7 +38,6 @@ public class OpenAiResumeService {
         try {
             URL url = new URL("https://api.openai.com/v1/chat/completions");
 
-            // configure the connection
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Authorization", "Bearer " + apiKey);
@@ -61,7 +60,6 @@ public class OpenAiResumeService {
             }
             """.formatted(MODEL_NAME, safePrompt);
 
-            // send request
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.getBytes(StandardCharsets.UTF_8));
             }
@@ -80,7 +78,6 @@ public class OpenAiResumeService {
                     new InputStreamReader(inputStream, StandardCharsets.UTF_8)
             );
 
-            // store response in string builder
             StringBuilder response = new StringBuilder();
             String line;
 
@@ -97,7 +94,6 @@ public class OpenAiResumeService {
                 throw new RuntimeException("OpenAI API call failed with status code: " + statusCode);
             }
 
-            // extract the content
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode root = objectMapper.readTree(responseBody);
 
@@ -110,6 +106,8 @@ public class OpenAiResumeService {
 
             JsonNode usage = root.path("usage");
             if (!usage.isMissingNode() && !usage.isNull()) {
+                // Usage fields are optional across model/API variants; when
+                // present they feed generation_history token/cost tracking.
                 resumeResponse.setInputTokenCount(readOptionalInt(usage, "prompt_tokens", "input_tokens"));
                 resumeResponse.setOutputTokenCount(readOptionalInt(usage, "completion_tokens", "output_tokens"));
             }

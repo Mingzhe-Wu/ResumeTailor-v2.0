@@ -6,7 +6,8 @@ import com.mingzhe.resumetailor.resume.ResumeMapper;
 import org.springframework.stereotype.Service;
 
 /**
- * Business logic for validating and managing Profile records.
+ * Manages the single master profile per user. Any profile-level change invalidates
+ * all generated resumes because every job-specific resume depends on it.
  */
 @Service
 public class ProfileService {
@@ -18,9 +19,7 @@ public class ProfileService {
         this.resumeMapper = resumeMapper;
     }
 
-    // Construct the profile entity from the uploaded profile DTO and call the mapper
     public Profile createProfile(CreateProfileDTO profile) {
-        // See if profile already exist for the given user id
         Profile existingProfile = profileMapper.findByUserId(profile.getUserId());
         if (existingProfile != null) {
             throw new BadRequestException("Profile already exists for this user");
@@ -36,16 +35,15 @@ public class ProfileService {
         profileEntity.setLocation(profile.getLocation());
         profileEntity.setSummary(profile.getSummary());
         profileMapper.insert(profileEntity);
+        // A new/changed master profile makes every resume for this user stale.
         resumeMapper.markResumeDirtyByUserId(profile.getUserId());
         return profileEntity;
     }
 
-    // Fetch the profile of a given user id from DB
     public Profile fetchProfile(Long userId) {
         return profileMapper.findByUserId(userId);
     }
 
-    // Fetch the existing profile and update
     public Profile updateProfile(Long userId, UpdateProfileDTO request) {
         Profile existingProfile = profileMapper.findByUserId(userId);
         if (existingProfile == null) {
@@ -64,11 +62,12 @@ public class ProfileService {
         update.setSummary(request.getSummary());
 
         profileMapper.updateById(update);
+        // Profile changes affect all jobs, not a subset, because the app has one
+        // master resume/profile per user.
         resumeMapper.markResumeDirtyByUserId(userId);
         return profileMapper.findByUserId(userId);
     }
 
-    // Delete the profile of a given user id
     public void deleteProfile(Long userId) {
         Profile existingProfile = profileMapper.findByUserId(userId);
         if (existingProfile == null) {

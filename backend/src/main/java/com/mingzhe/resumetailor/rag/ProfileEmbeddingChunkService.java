@@ -41,17 +41,16 @@ public class ProfileEmbeddingChunkService {
         this.projectMapper = projectMapper;
     }
 
-    // Inserting or updating bullet chunks for given user and source
     private void syncBulletChunks(
             Long userId,
             EmbeddingSourceType sourceType,
             Long sourceId,
             String bulletText
     ) {
-        // If current source already embedded, delete the current embedding for data integrity
+        // Chunks are source-owned snapshots. Rebuild a source's chunks whenever
+        // its bullets change so stale embeddings cannot be retrieved later.
         profileEmbeddingChunkMapper.deleteByUserAndSource(userId, sourceType, sourceId);
 
-        // Parse bullet point by *
         List<String> bullets = bulletChunkParser.parseBullets(bulletText);
 
         for (String bullet : bullets) {
@@ -96,6 +95,8 @@ public class ProfileEmbeddingChunkService {
 
     @Transactional
     public void syncSkillChunks(Long userId, Long profileId) {
+        // Skills are embedded by category instead of individual rows so retrieval
+        // can curate compact skill groups for the final resume.
         profileEmbeddingChunkMapper.deleteByUserAndSource(
                 userId,
                 EmbeddingSourceType.SKILL,
@@ -139,6 +140,8 @@ public class ProfileEmbeddingChunkService {
 
     @Transactional
     public void syncAllProfileChunks(Long userId) {
+        // RAG uses lazy full-profile sync at generation time. This keeps edit
+        // operations cheap while still ensuring retrieval sees current evidence.
         Profile profile = profileMapper.findByUserId(userId);
         if (profile == null || profile.getId() == null) {
             return;

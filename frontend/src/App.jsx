@@ -292,6 +292,8 @@ function App() {
   const pollGeneratedResume = (jobId, generationMethod) => {
     const intervalId = setInterval(async () => {
       try {
+        // Poll generation_history status instead of resume_versions alone; an
+        // old resume can exist while a new async generation is still running.
         const statusResponse = await api.get(`/api/resume/generation-status/${jobId}`, {
           params: { generationMethod },
         });
@@ -304,6 +306,8 @@ function App() {
 
         if (generationStatus === "SUCCESS") {
           clearInterval(intervalId);
+          // Fetch the resume only after SUCCESS so the preview never treats the
+          // previous version as the newly completed generation.
           await fetchResumeForJob(jobId, false, generationMethod);
           setResumeLoading(false);
           setResumePanelError("");
@@ -363,6 +367,8 @@ function App() {
       setSessionValidated(false);
 
       try {
+        // There is no dedicated token-validation endpoint; this lightweight
+        // authenticated fetch proves the stored JWT is still accepted.
         await api.get(`/api/profile/fetch/${user.id}`);
       } catch (err) {
         if (err.response?.status === 401 || err.response?.status === 403) {
@@ -461,6 +467,8 @@ function App() {
 
   useEffect(() => {
     const currentResume = resumeVersions[selectedResumeMethod];
+    // Inline editing works on a deep copy so switching versions never mutates
+    // the fetched resume object before the user explicitly saves.
     setResumeContent(currentResume ? deepClone(currentResume.generatedContent) : null);
   }, [selectedResumeMethod, resumeVersions]);
 
@@ -510,6 +518,8 @@ function App() {
 
     try {
       setResumePanelError("");
+      // Empty inline bullets are editor affordances only; strip them before
+      // replacing the JSONB resume document on the backend.
       const cleanedResumeContent = sanitizeResumeBulletFields(resumeContent);
 
       await api.put(`/api/resume/update/${generatedResume.id}`, {
@@ -615,6 +625,8 @@ function App() {
     clearToastTimers();
 
     if (toast) {
+      // Replace visible toasts through the exit animation first, then start a
+      // fresh timer for the incoming message.
       setToast((currentToast) =>
         currentToast ? { ...currentToast, exiting: true } : currentToast
       );

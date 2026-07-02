@@ -3,6 +3,8 @@ import { jsPDF } from "jspdf";
 
 export async function exportResumeElementToPdf(element, filename) {
   await document.fonts?.ready;
+  // Export the exact rendered resume DOM, but toggle export-only CSS to hide
+  // editor affordances such as placeholders and add-bullet buttons.
   element.classList.add("pdf-exporting");
   element.classList.add("exporting-pdf");
 

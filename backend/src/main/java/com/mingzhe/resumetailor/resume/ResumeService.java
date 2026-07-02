@@ -41,7 +41,8 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * Business logic for validating and managing Resume records.
+ * Coordinates resume persistence, AI generation, dirty-state validation, and
+ * generation history tracking for both Normal and RAG generation modes.
  */
 @Slf4j
 @Service
@@ -228,7 +229,8 @@ public class ResumeService {
         PromptTemplate promptTemplate = null;
 
         try {
-            // fetch resume context with given job id
+            // Normal generation uses the entire master profile and job context.
+            // RAG-specific embedding sync and retrieval intentionally do not run here.
             ResumeGenerationContext context = fetchResumeContext(jobId);
             userId = context.getJob().getUserId();
 
@@ -239,13 +241,12 @@ public class ResumeService {
             promptTemplate = promptTemplateService.getEffectivePrompt(userId, PromptTemplateType.NORMAL);
             ensureGenerationAllowed(jobId);
 
-            // build structured prompt for calling OpenAI api with the context
+            // The stable prompt body comes from the active DB template; Java only
+            // injects the dynamic job/profile sections into required placeholders.
             String prompt = buildPrompt(context, promptTemplate);
 
-            // call OpenAi api up to three times to generate resume
             OpenAiResumeResponse aiResponse = callLlmWithRetry(prompt);
 
-            // construct resume and save to database
             Resume resume = new Resume();
             resume.setJobId(jobId);
             resume.setMatchScore(null);
@@ -330,6 +331,8 @@ public class ResumeService {
     }
 
     private void checkAndIncreaseGenerationQuotaForUser(Long userId) {
+        // Both checks are Redis-backed and intentionally fail closed: if Redis
+        // rejects or is unavailable, generation does not proceed silently.
         try {
             rateLimitService.checkAndIncrease(
                     userId,
@@ -399,6 +402,9 @@ public class ResumeService {
             }
 
             log.info("RAG resume generation started for jobId={}, userId={}", jobId, userId);
+            // RAG generation refreshes chunks lazily at generation time so the
+            // retrieval corpus reflects the latest profile evidence without
+            // forcing embeddings on every profile edit.
             profileEmbeddingChunkService.syncAllProfileChunks(userId);
             chunkEmbeddingService.embedPendingChunksByUserId(userId);
 
@@ -425,6 +431,8 @@ public class ResumeService {
             String resumeContext = resumeContextBuilderService.buildResumeContext(userId, retrievalResult, false);
             // log.info("RAG resume context for jobId={}:\n{}", jobId, resumeContext);
 
+            // RAG prompts receive only the reconstructed evidence context, not
+            // the raw full profile, to keep the grounded path distinct.
             String prompt = buildRagPrompt(job, resumeContext, promptTemplate);
             OpenAiResumeResponse aiResponse = callLlmWithRetry(prompt);
 
@@ -498,6 +506,8 @@ public class ResumeService {
         }
 
         Resume existingResume = resumeMapper.findByJobIdAndGenerationMethod(jobId, generationMethod);
+        // needGenerate is the freshness gate: users can regenerate only when no
+        // version exists or the relevant profile/job data has changed.
         if (existingResume != null && !Boolean.TRUE.equals(existingResume.getNeedGenerate())) {
             throw new BadRequestException("Resume is already up to date.");
         }
@@ -570,10 +580,10 @@ public class ResumeService {
             try {
                 log.info("LLM attempt {} started", attempt);
 
-                // call OpenAi api to generate a response
                 OpenAiResumeResponse aiResponse = openAiResumeService.generateWithUsage(prompt);
 
-                // validate the response
+                // Validate the model output before persisting so failed or
+                // malformed completions never become the latest resume version.
                 validateGeneratedResume(aiResponse.getContent());
 
                 log.info("LLM attempt {} succeeded", attempt);
@@ -612,6 +622,8 @@ public class ResumeService {
         ResumeGenerationContext context = new ResumeGenerationContext();
         context.setJob(job);
         context.setProfile(profile);
+        // Aggregates the normalized master profile into the full-profile prompt
+        // context. The frontend still owns rendering and editing of the JSONB resume.
         context.setExperiences(experienceMapper.findByProfileId(profile.getId()));
         context.setEducations(educationMapper.findByProfileId(profile.getId()));
         context.setProjects(projectMapper.findByProfileId(profile.getId()));

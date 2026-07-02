@@ -45,6 +45,8 @@ public class ChunkEmbeddingService {
                         EmbeddingStatus.PENDING
                 );
 
+        // Embedding failures are isolated per chunk so one bad source does not
+        // block the rest of the user's retrieval corpus from becoming READY.
         for (ProfileEmbeddingChunk chunk : pendingChunks) {
             try {
                 float[] embedding = createEmbedding(chunk.getContentText());
@@ -118,6 +120,8 @@ public class ChunkEmbeddingService {
             }
 
             if (embeddingNode.size() != EXPECTED_DIMENSION) {
+                // pgvector column dimensions are fixed by migration, so reject
+                // unexpected model output before it reaches the database.
                 throw new RuntimeException(
                         "Invalid embedding dimension: expected "
                                 + EXPECTED_DIMENSION

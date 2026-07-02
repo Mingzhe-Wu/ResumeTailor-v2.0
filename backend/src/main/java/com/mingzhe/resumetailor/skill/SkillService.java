@@ -205,6 +205,8 @@ public class SkillService {
         if (successCount > 0) {
             resumeMapper.markResumeDirtyByUserId(profile.getUserId());
 
+            // Skills are retrieved as category chunks, so any successful import
+            // rebuilds the profile-level skill embedding source.
             profileEmbeddingChunkService.syncSkillChunks(
                     profile.getUserId(),
                     profile.getId()

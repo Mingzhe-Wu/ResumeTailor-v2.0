@@ -8,6 +8,7 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
   if (token) {
+    // Keep API calls centralized so feature code does not manually attach JWTs.
     config.headers.Authorization = `Bearer ${token}`;
   }
 
@@ -18,6 +19,8 @@ const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
 const NETWORK_ERROR_MESSAGE = "Network error. Please check your connection.";
 
 function isTechnicalMessage(message) {
+  // Backend logs keep stack traces; frontend toasts should show safe user-facing
+  // messages only.
   return (
     /\b[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*){2,}\b/.test(message) ||
     /\b(Exception|StackTrace|SQLException|NullPointerException|RuntimeException)\b/.test(message) ||
@@ -43,6 +46,8 @@ export function getApiErrorMessage(error, fallback = DEFAULT_ERROR_MESSAGE) {
   }
 
   if (data && typeof data === "object") {
+    // Support all backend error shapes currently used by Spring and async
+    // generation status responses.
     const message = data.message || data.errorMessage || data.error || data.detail;
     if (typeof message === "string" && message.trim()) {
       return safeMessage(message, fallbackMessage);

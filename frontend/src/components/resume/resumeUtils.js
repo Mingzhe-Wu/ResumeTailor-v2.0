@@ -104,6 +104,8 @@ export function updateBulletField(item, bullets) {
     Object.prototype.hasOwnProperty.call(item, name)
   ) || "bullets";
   const existingValue = item[field];
+  // Empty bullets are allowed while editing, but persisted resume JSON should
+  // contain only meaningful bullet text.
   const cleanedBullets = bullets.map((bullet) => bullet.trim()).filter(Boolean);
 
   return {
@@ -154,6 +156,8 @@ export function sanitizeResumeBulletFields(value) {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => {
       if (["bullets", "details", "description", "relevantCoursework"].includes(key)) {
+        // Save Resume replaces the whole JSONB document, so recursively clean
+        // editor-only empty bullet placeholders before sending it.
         const cleanedBullets = normalizeBullets(item);
         return [key, Array.isArray(item) ? cleanedBullets : cleanedBullets.join("\n")];
       }

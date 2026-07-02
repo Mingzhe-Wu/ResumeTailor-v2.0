@@ -76,6 +76,8 @@ export default function EditableResumePreview({ resume, onChange, resumeRef, out
         <p className="ats-contact-line">
           {contactFields.map(([field, value]) => {
             const hasValue = String(value || "").trim() !== "";
+            // Separators are calculated from non-empty values so exported PDFs
+            // do not show orphan bullets for blank editable contact fields.
             const shouldShowSeparator = hasValue && visibleContactCount > 0;
             if (hasValue) visibleContactCount += 1;
 

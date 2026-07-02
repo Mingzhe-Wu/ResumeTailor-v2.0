@@ -42,6 +42,8 @@ public class PromptTemplateService {
         validateUserId(userId);
         validateType(type);
 
+        // The effective prompt is user-specific: prefer a user's active prompt,
+        // then fall back to the default row where user_id is NULL.
         String cacheKey = RedisKeyConstants.effectivePromptKey(userId, type.name());
         PromptTemplate cachedPrompt = readEffectivePromptFromCache(cacheKey);
         if (cachedPrompt != null) {
@@ -73,6 +75,8 @@ public class PromptTemplateService {
         validateContent(type, content);
 
         PromptTemplate promptTemplate = new PromptTemplate();
+        // Saving must never touch the global default prompt row; userId is part
+        // of both the upsert predicate and the effective-prompt cache key.
         promptTemplate.setUserId(userId);
         promptTemplate.setType(type.name());
         promptTemplate.setName(type.name() + " Resume Prompt");
@@ -113,6 +117,8 @@ public class PromptTemplateService {
         try {
             return objectMapper.readValue(cachedJson, PromptTemplate.class);
         } catch (Exception e) {
+            // Bad cache data should be self-healing: discard it and let the DB
+            // source of truth rebuild the cache.
             log.warn("Failed to deserialize effective prompt cache for key={}. Deleting bad cache entry.", cacheKey, e);
             try {
                 redisCacheService.delete(cacheKey);
@@ -161,6 +167,8 @@ public class PromptTemplateService {
         }
 
         if (type == PromptTemplateType.NORMAL) {
+            // Placeholders are the contract between stored templates and Java's
+            // dynamic context assembly for full-profile generation.
             requirePlaceholder(content, "{{roleFocus}}");
             requirePlaceholder(content, "{{targetJob}}");
             requirePlaceholder(content, "{{candidateProfile}}");
@@ -171,6 +179,8 @@ public class PromptTemplateService {
         }
 
         if (type == PromptTemplateType.RAG) {
+            // RAG templates intentionally receive reconstructed evidence context
+            // instead of raw full-profile sections.
             requirePlaceholder(content, "{{roleFocus}}");
             requirePlaceholder(content, "{{targetJob}}");
             requirePlaceholder(content, "{{resumeContext}}");

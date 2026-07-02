@@ -58,6 +58,8 @@ public class AiQuotaService {
         String key = RedisKeyConstants.dailyAiQuotaKey(userId, LocalDate.now());
         Duration ttl = durationUntilEndOfDay();
 
+        // The key expires at local midnight, giving each user a fresh daily AI
+        // generation budget without a scheduled cleanup job.
         Long count = redisCacheService.increment(key, ttl);
 
         return count == null ? 0L : count;

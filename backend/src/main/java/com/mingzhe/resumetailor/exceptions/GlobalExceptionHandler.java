@@ -13,11 +13,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Converts application exceptions into consistent HTTP error responses.
+ * Converts application exceptions into consistent HTTP error responses while
+ * keeping raw SQL errors and stack traces out of frontend-facing messages.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    // Exception for non-valid arguments from DTOs
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -30,14 +30,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    // Exceptions for illegal requests
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException ex) {
         ErrorResponse response = new ErrorResponse(ex.getMessage(), null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    // Exceptions for resource not found in database
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
         ErrorResponse response = new ErrorResponse(ex.getMessage(), null);
@@ -53,6 +51,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
         String message = getMostSpecificMessage(ex);
+        // Preserve a friendly duplicate-skill message without leaking database
+        // constraint names for other integrity failures.
         String userMessage = message.contains("uk_profile_skill")
                 ? "Skill already exists."
                 : "Invalid or duplicate data.";

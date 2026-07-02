@@ -27,6 +27,8 @@ public class GenerationCostService {
             return null;
         }
 
+        // Costs are estimates for observability only. Pricing is configurable
+        // so model changes do not require touching generation business logic.
         BigDecimal inputCost = calculateTokenCost(inputTokens, inputPricePerMillion);
         BigDecimal outputCost = calculateTokenCost(outputTokens, outputPricePerMillion);
 

@@ -76,6 +76,8 @@ export default function ResumePreviewPanel({
 
     const checkResumeBoundary = () => {
       const resumeElement = resumePreviewRef.current;
+      // The preview is a fixed paper rectangle; overflow warning tells users
+      // when exported content may extend beyond the visible resume page.
       setResumeOutOfBoundary(
         Boolean(resumeElement && resumeElement.scrollHeight > resumeElement.clientHeight + 1)
       );

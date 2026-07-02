@@ -58,6 +58,9 @@ public class ResumeContextBuilderService {
         StringBuilder builder = new StringBuilder();
         Profile profile = profileMapper.findByUserId(userId);
 
+        // The context builder reconstructs readable resume evidence from
+        // retrieved chunk IDs. Production prompts omit distances and source IDs;
+        // debug endpoints can opt in with includeDebugMetadata=true.
         appendCandidateProfile(builder, profile);
         appendEducation(builder, profile);
         appendExperienceAndProjects(
@@ -130,6 +133,9 @@ public class ResumeContextBuilderService {
         Map<Long, List<RetrievedChunkDTO>> projectChunks = new LinkedHashMap<>();
 
         for (RetrievedChunkDTO chunk : sortedChunks) {
+            // Keep retrieved bullets grouped under their original source so the
+            // model can preserve company/project context while still seeing only
+            // relevance-filtered evidence.
             if (chunk.getSourceType() == EmbeddingSourceType.EXPERIENCE) {
                 experienceChunks.computeIfAbsent(chunk.getSourceId(), ignored -> new ArrayList<>()).add(chunk);
             } else if (chunk.getSourceType() == EmbeddingSourceType.PROJECT) {

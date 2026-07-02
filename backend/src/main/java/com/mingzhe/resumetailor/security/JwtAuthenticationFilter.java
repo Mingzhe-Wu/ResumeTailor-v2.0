@@ -40,6 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authorizationHeader.substring(BEARER_PREFIX.length());
 
+        // The filter only establishes authentication when the JWT is valid and
+        // no earlier filter has already populated the security context.
         if (!jwtService.isTokenValid(token)
                 || SecurityContextHolder.getContext().getAuthentication() != null) {
             filterChain.doFilter(request, response);

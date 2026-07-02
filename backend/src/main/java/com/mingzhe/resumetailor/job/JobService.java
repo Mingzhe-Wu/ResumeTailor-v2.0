@@ -10,7 +10,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Business logic for validating and managing Job records.
+ * Manages independent job records. Updating a job invalidates only that job's
+ * generated resumes because the job description is job-local input.
  */
 @Service
 public class JobService {
@@ -26,14 +27,12 @@ public class JobService {
     }
 
     public Job createJob(CreateJobDTO request) {
-        // use enum to validate status if provided
         Integer status = request.getStatus() == null ? 1 : request.getStatus();
         validateStatus(status);
 
         Integer priority = request.getPriority() == null ? 0 : request.getPriority();
         validatePriority(priority);
 
-        // validate if user id exist in db
         User user = userMapper.findById(request.getUserId());
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
@@ -57,7 +56,6 @@ public class JobService {
     }
 
     public List<Job> fetchJobsByUserId(Long userId) {
-        // validate if user id exist in db
         User user = userMapper.findById(userId);
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
@@ -84,13 +82,11 @@ public class JobService {
     }
 
     public Job updateJob(Long id, UpdateJobDTO request) {
-        // validate if user id exist in db
         Job existingJob = jobMapper.findById(id);
         if (existingJob == null) {
             throw new ResourceNotFoundException("Job not found");
         }
 
-        // use enum to validate status if provided
         if (request.getStatus() != null) {
             validateStatus(request.getStatus());
         }
@@ -112,12 +108,13 @@ public class JobService {
         update.setNotes(request.getNotes());
 
         jobMapper.updateById(update);
+        // Job edits change only the selected job's tailoring target, so other
+        // jobs and their resume versions stay untouched.
         resumeMapper.markResumeDirtyByJobId(id);
         return jobMapper.findById(id);
     }
 
     public void deleteJob(Long id) {
-        // validate if user id exist in db
         Job existingJob = jobMapper.findById(id);
         if (existingJob == null) {
             throw new ResourceNotFoundException("Job not found");

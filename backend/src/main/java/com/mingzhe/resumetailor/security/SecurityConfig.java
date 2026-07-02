@@ -39,6 +39,8 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
+                // The API is stateless: JWTs carry identity, and the backend
+                // does not rely on HTTP sessions.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -66,6 +68,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
+        // Docker and local development can run the frontend on different ports,
+        // so allowed origins stay environment-configurable.
         config.setAllowedOrigins(
                 List.of(allowedOrigins.split(","))
                         .stream()

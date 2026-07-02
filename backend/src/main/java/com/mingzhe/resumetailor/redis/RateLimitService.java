@@ -19,6 +19,8 @@ public class RateLimitService {
 
     public long increaseRequestCount(Long userId, String action, Duration window) {
         String key = RedisKeyConstants.rateLimitKey(userId, action, LocalDateTime.now());
+        // The timestamp-bucketed key plus TTL implements a lightweight fixed
+        // window limiter without storing per-request records.
         Long count = redisCacheService.increment(key, window);
 
         return count == null ? 0L : count;

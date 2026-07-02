@@ -75,6 +75,8 @@ public class GenerationHistoryService {
             GenerationMethod generationMethod,
             String modelName
     ) {
+        // Async generation creates the history row before work starts so the
+        // frontend can poll lifecycle status instead of guessing from old resumes.
         GenerationHistory generationHistory = new GenerationHistory();
         generationHistory.setUserId(userId);
         generationHistory.setJobId(jobId);
@@ -106,6 +108,8 @@ public class GenerationHistoryService {
         generationHistory.setErrorMessage(null);
         generationHistory.setInputTokenCount(inputTokenCount);
         generationHistory.setOutputTokenCount(outputTokenCount);
+        // Token counts come from the model response when available; missing
+        // usage data leaves cost nullable rather than inventing values.
         generationHistory.setEstimatedCostUsd(
                 generationCostService.estimateCostUsd(inputTokenCount, outputTokenCount)
         );
@@ -190,6 +194,8 @@ public class GenerationHistoryService {
     }
 
     private String safeErrorMessage(String errorMessage) {
+        // Store only concise, user-safe failure context. Full stack traces stay
+        // in server logs through the caller's logger.
         if (errorMessage == null || errorMessage.isBlank()) {
             return "Resume generation failed. Please try again.";
         }

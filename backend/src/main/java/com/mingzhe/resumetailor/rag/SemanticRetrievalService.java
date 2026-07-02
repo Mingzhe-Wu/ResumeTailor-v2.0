@@ -53,6 +53,8 @@ public class SemanticRetrievalService {
         int resolvedSkillTopK = resolveTopK(skillTopK);
         int resolvedEvidenceTopK = resolveTopK(experienceAndProjectTopK);
 
+        // A single job-description embedding is reused for both retrieval lanes:
+        // skill category hints and evidence bullets from experience/projects.
         float[] queryEmbedding = chunkEmbeddingService.createEmbedding(jobDescription);
 
         List<RetrievedChunkDTO> skills =
