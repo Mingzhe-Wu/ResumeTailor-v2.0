@@ -2,7 +2,13 @@ import EditableResumeSection from "./EditableResumeSection.jsx";
 import EditableText from "./EditableText.jsx";
 import { getResumeSectionKey } from "./resumeUtils.js";
 
-export default function EditableResumePreview({ resume, onChange, resumeRef, outOfBoundary = false }) {
+export default function EditableResumePreview({
+  resume,
+  onChange,
+  resumeRef,
+  outOfBoundary = false,
+  contentTopOffset = 0,
+}) {
   if (!resume || typeof resume !== "object") {
     return (
       <div className="resume-empty-state">
@@ -63,6 +69,7 @@ export default function EditableResumePreview({ resume, onChange, resumeRef, out
     <article
       className={outOfBoundary ? "ats-resume ats-resume-out-of-boundary" : "ats-resume"}
       ref={resumeRef}
+      style={{ "--resume-content-top-offset": `${contentTopOffset}px` }}
     >
       <header className="ats-contact">
         <h1>

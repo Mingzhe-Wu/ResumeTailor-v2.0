@@ -1522,7 +1522,7 @@ label {
   box-sizing: border-box;
   height: 10.5in;
   margin: 18px auto 22px;
-  padding: 0.42in 0.5in;
+  padding: calc(32px + var(--resume-content-top-offset, 0px)) 0.5in 0.42in;
   border: 1px solid #d5dce5;
   border-radius: 6px;
   background: #ffffff;

@@ -25,6 +25,7 @@ export default function ResumePreviewPanel({
   resumePreviewRef,
 }) {
   const [resumeOutOfBoundary, setResumeOutOfBoundary] = useState(false);
+  const [resumeContentTopOffset, setResumeContentTopOffset] = useState(0);
   const [skillKeywords, setSkillKeywords] = useState([]);
   const [keywordHintsLoading, setKeywordHintsLoading] = useState(false);
   const [keywordHintsError, setKeywordHintsError] = useState("");
@@ -71,16 +72,28 @@ export default function ResumePreviewPanel({
   useEffect(() => {
     if (!selectedJob) {
       setResumeOutOfBoundary(false);
+      setResumeContentTopOffset(0);
       return;
     }
 
     const checkResumeBoundary = () => {
       const resumeElement = resumePreviewRef.current;
+      if (!resumeElement) {
+        setResumeOutOfBoundary(false);
+        setResumeContentTopOffset(0);
+        return;
+      }
+
+      const baseTopPadding = 32;
+      const minTopPadding = 20;
+      const overflowAmount = Math.max(0, resumeElement.scrollHeight - resumeElement.clientHeight);
+      const availableShift = Math.max(0, baseTopPadding - minTopPadding);
+      const nextTopOffset = -Math.min(availableShift, overflowAmount);
+
       // The preview is a fixed paper rectangle; overflow warning tells users
       // when exported content may extend beyond the visible resume page.
-      setResumeOutOfBoundary(
-        Boolean(resumeElement && resumeElement.scrollHeight > resumeElement.clientHeight + 1)
-      );
+      setResumeOutOfBoundary(resumeElement.scrollHeight > resumeElement.clientHeight + 1);
+      setResumeContentTopOffset(nextTopOffset);
     };
 
     const frameId = requestAnimationFrame(checkResumeBoundary);
@@ -190,6 +203,7 @@ export default function ResumePreviewPanel({
               onChange={onResumeChange}
               resumeRef={resumePreviewRef}
               outOfBoundary={resumeOutOfBoundary}
+              contentTopOffset={resumeContentTopOffset}
             />
           </div>
         ) : resumeLoading ? (
