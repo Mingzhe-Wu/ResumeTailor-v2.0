@@ -9,6 +9,7 @@ const logoutButton = document.getElementById("logoutButton");
 const jwtTokenDisplay = document.getElementById("jwtTokenDisplay");
 const loginStatusBadge = document.getElementById("loginStatusBadge");
 const importButton = document.getElementById("importButton");
+const copyJdButton = document.getElementById("copyJdButton");
 const defaultJobStatusSelect = document.getElementById("defaultJobStatus");
 const statusMessage = document.getElementById("statusMessage");
 const previewTitle = document.getElementById("previewTitle");
@@ -21,6 +22,7 @@ loginEmailInput.addEventListener("change", saveSettings);
 loginButton.addEventListener("click", loginToResumeTailor);
 logoutButton.addEventListener("click", clearExtensionToken);
 importButton.addEventListener("click", importCurrentJob);
+copyJdButton.addEventListener("click", copyCurrentJobDescription);
 defaultJobStatusSelect.addEventListener("change", saveSettings);
 
 async function restoreSettings() {
@@ -121,6 +123,40 @@ async function importCurrentJob() {
   }
 }
 
+async function copyCurrentJobDescription() {
+  setStatus("Extracting job description...", "info");
+  setCopyButtonLoading(true);
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) {
+      throw new Error("No active tab found.");
+    }
+
+    const extracted = await extractVisiblePageContent(tab.id);
+    updatePreview(extracted);
+
+    if (extracted.description.length < MIN_VISIBLE_TEXT_LENGTH) {
+      setStatus(
+        "The visible page text is too short to copy. Open the full job posting and try again.",
+        "warning"
+      );
+      return;
+    }
+
+    await copyJobDescriptionToClipboard(extracted.description);
+    setStatus("Job description copied to clipboard.", "success");
+  } catch (error) {
+    setStatus(getReadableErrorMessage(error), "error");
+  } finally {
+    setCopyButtonLoading(false);
+  }
+}
+
+async function copyJobDescriptionToClipboard(description) {
+  await navigator.clipboard.writeText(description);
+}
+
 async function extractVisiblePageContent(tabId) {
   const [result] = await chrome.scripting.executeScript({
     target: { tabId },
@@ -151,7 +187,26 @@ function extractJobDescriptionFromVisibleText(value) {
     return text;
   }
 
-  return text.slice(markerMatch.index);
+  const descriptionText = text.slice(markerMatch.index);
+  const premiumMarkerIndex = findSectionMarkerIndex(
+    descriptionText,
+    "Job search faster with Premium"
+  );
+  if (premiumMarkerIndex >= 0) {
+    return descriptionText.slice(0, premiumMarkerIndex);
+  }
+
+  const companyMarkerIndex = findSectionMarkerIndex(descriptionText, "About the company");
+  return companyMarkerIndex >= 0
+    ? descriptionText.slice(0, companyMarkerIndex)
+    : descriptionText;
+}
+
+function findSectionMarkerIndex(text, marker) {
+  const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = text.match(new RegExp(`(^|\\n)\\s*${escapedMarker}\\s*(\\n|$)`, "i"));
+
+  return match?.index ?? -1;
 }
 
 async function sendImportRequest(extracted) {
@@ -273,6 +328,13 @@ function setStatus(message, type) {
 function setButtonLoading(isLoading) {
   importButton.disabled = isLoading;
   importButton.textContent = isLoading ? "Importing..." : "Import Current Job";
+}
+
+function setCopyButtonLoading(isLoading) {
+  copyJdButton.disabled = isLoading;
+  copyJdButton.textContent = isLoading
+    ? "Copying..."
+    : "Copy JD to Clipboard";
 }
 
 function setLoginButtonLoading(isLoading) {

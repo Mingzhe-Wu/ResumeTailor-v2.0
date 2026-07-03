@@ -76,17 +76,6 @@ body {
   color: #23785f;
 }
 
-.jd-reminder {
-  border: 1px solid rgba(138, 90, 0, 0.22);
-  border-radius: 12px;
-  background: #fff8e8;
-  color: #715000;
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.45;
-}
-
 .form-section {
   display: grid;
   gap: 7px;

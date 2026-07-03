@@ -13,10 +13,6 @@
         <p>Import the visible job posting page into your local ResumeTailor app.</p>
       </header>
 
-      <aside class="jd-reminder" aria-label="LinkedIn import reminder">
-        Before importing from LinkedIn, click <strong>more</strong> in the job description so the full JD is visible.
-      </aside>
-
       <section class="panel-section form-section" aria-label="Backend settings">
         <h2>Connection</h2>
         <label for="backendBaseUrl">Backend Base URL</label>
@@ -70,6 +66,9 @@
         <h2>Import</h2>
         <button id="importButton" class="primary-button" type="button">
           Import Current Job
+        </button>
+        <button id="copyJdButton" class="secondary-button" type="button">
+          Copy JD to Clipboard
         </button>
         <label for="defaultJobStatus">Default Job Status</label>
         <select id="defaultJobStatus">

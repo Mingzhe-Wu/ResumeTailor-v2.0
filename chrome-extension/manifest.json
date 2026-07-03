@@ -5,6 +5,7 @@
   "description": "Import the currently opened job posting page into ResumeTailor.",
   "permissions": [
     "activeTab",
+    "clipboardWrite",
     "sidePanel",
     "scripting",
     "storage",

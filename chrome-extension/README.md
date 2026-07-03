@@ -57,10 +57,9 @@ The side panel only displays a masked token preview. Manual token entry is inten
 1. Start the ResumeTailor backend locally.
 2. Log in from the extension side panel.
 3. Open a job posting page in Chrome, such as a LinkedIn job page that you can already view.
-4. If the LinkedIn job description is collapsed, click **more** in the JD before importing.
-5. Open the extension side panel.
-6. Confirm the backend URL, extension login state, and default job status.
-7. Click **Import Current Job**.
+4. Open the extension side panel.
+5. Confirm the backend URL, extension login state, and default job status.
+6. Click **Import Current Job**.
 
 The extension extracts:
 
@@ -89,6 +88,8 @@ Request body:
   "status": 1
 }
 ```
+
+Use **Copy JD to Clipboard** when you want to copy the extracted job description without importing the job into ResumeTailor.
 
 ## Current Limitations
 
