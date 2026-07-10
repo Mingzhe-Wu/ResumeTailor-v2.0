@@ -13,7 +13,7 @@ const copyJdButton = document.getElementById("copyJdButton");
 const defaultJobStatusSelect = document.getElementById("defaultJobStatus");
 const statusMessage = document.getElementById("statusMessage");
 const previewTitle = document.getElementById("previewTitle");
-const previewUrl = document.getElementById("previewUrl");
+const previewCompany = document.getElementById("previewCompany");
 const previewLength = document.getElementById("previewLength");
 
 document.addEventListener("DOMContentLoaded", restoreSettings);
@@ -316,7 +316,7 @@ function normalizeVisibleText(value) {
 
 function updatePreview(extracted) {
   previewTitle.textContent = extracted.title || "Untitled page";
-  previewUrl.textContent = extracted.sourceUrl || "No URL";
+  previewCompany.textContent = extracted.company || "Unknown";
   previewLength.textContent = `${extracted.description.length.toLocaleString()} characters`;
 }
 
