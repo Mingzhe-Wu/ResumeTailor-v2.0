@@ -24,10 +24,11 @@ public class OpenAiResumeService {
 
     // Keep the API key outside application config files and Docker images.
     private final String apiKey = System.getenv("OPENAI_API_KEY");
-    private static final String MODEL_NAME = "gpt-5.5";
+    private static final String DEFAULT_MODEL_NAME = "gpt-5.6-terra";
+    private final String modelName = getEnvironmentValue("OPENAI_MODEL_NAME", DEFAULT_MODEL_NAME);
 
     public String getModelName() {
-        return MODEL_NAME;
+        return modelName;
     }
 
     public String generate(String prompt) {
@@ -58,7 +59,7 @@ public class OpenAiResumeService {
                 {"role": "user", "content": "%s"}
               ]
             }
-            """.formatted(MODEL_NAME, safePrompt);
+            """.formatted(modelName, safePrompt);
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.getBytes(StandardCharsets.UTF_8));
@@ -129,5 +130,10 @@ public class OpenAiResumeService {
         }
 
         return value.isInt() || value.isLong() ? value.asInt() : null;
+    }
+
+    private String getEnvironmentValue(String name, String defaultValue) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? defaultValue : value.trim();
     }
 }
