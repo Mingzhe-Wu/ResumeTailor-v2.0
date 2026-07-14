@@ -1014,6 +1014,21 @@ function App() {
     return value ? String(value).slice(0, 16) : "";
   }
 
+  function formatJobListDate(value) {
+    const datePart = String(value || "").slice(0, 10);
+    const date = new Date(`${datePart}T00:00:00`);
+
+    if (!datePart || Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
   function isValidOptionalPriority(value) {
     return value === "" || Number(value) >= 0;
   }
@@ -1604,24 +1619,29 @@ function App() {
                 {hasJobFilters ? "No jobs found." : "No jobs yet. Add your first job."}
               </p>
             ) : (
-              jobs.map((job) => (
-                <button
-                  key={job.id}
-                  className={
-                    selectedJob?.id === job.id
-                      ? "job-card active-job"
-                      : "job-card"
-                  }
-                  onClick={() => {
-                    setSelectedJob(job);
-                    fillSelectedJobForm(job);
-                  }}
-                >
-                  <h3>{job.title}</h3>
-                  <p>{job.company}</p>
-                  <span>{statusMap[job.status] || "Unknown"}</span>
-                </button>
-              ))
+              jobs.map((job) => {
+                const statusLabel = statusMap[job.status] || "Unknown";
+                const createdDate = formatJobListDate(job.createdAt);
+
+                return (
+                  <button
+                    key={job.id}
+                    className={
+                      selectedJob?.id === job.id
+                        ? "job-card active-job"
+                        : "job-card"
+                    }
+                    onClick={() => {
+                      setSelectedJob(job);
+                      fillSelectedJobForm(job);
+                    }}
+                  >
+                    <h3>{job.title}</h3>
+                    <p>{job.company}</p>
+                    <span>{createdDate ? `${statusLabel} on ${createdDate}` : statusLabel}</span>
+                  </button>
+                );
+              })
             )}
           </div>
 
