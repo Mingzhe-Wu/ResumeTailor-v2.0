@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import api, {
   getApiErrorMessage,
   getEffectivePromptTemplate,
@@ -40,6 +41,26 @@ function ResumeGenerationHelp({ className = "" }) {
         <p>Best for most users and early drafts. AI uses your full profile to organize, expand, compress, and shape a polished resume.</p>
         <strong>RAG</strong>
         <p>Best when factual grounding and JD-specific evidence selection matter more than creative rewriting. Works best when your profile already contains many detailed, well-written bullets.</p>
+      </div>
+    </div>
+  );
+}
+
+function RagDescriptionHelp({ sectionName }) {
+  return (
+    <div className="resume-method-help">
+      <button
+        type="button"
+        className="resume-method-help-trigger"
+        aria-label={`How to format a ${sectionName} description for RAG generation`}
+      >
+        ?
+      </button>
+      <div className="resume-method-tooltip" role="tooltip">
+        <p>
+          To ensure high-quality RAG generation, write the description as
+          bullet points and start each bullet with an asterisk (*).
+        </p>
       </div>
     </div>
   );
@@ -139,6 +160,7 @@ function App() {
   const [promptResetting, setPromptResetting] = useState(false);
   const [promptError, setPromptError] = useState("");
   const [jobError, setJobError] = useState("");
+  const [jobRefreshing, setJobRefreshing] = useState(false);
   const [jobSearchKeyword, setJobSearchKeyword] = useState("");
   const [jobStatusFilter, setJobStatusFilter] = useState("");
 
@@ -1041,6 +1063,22 @@ function App() {
     }
   }
 
+  async function refreshJobList() {
+    setJobRefreshing(true);
+
+    try {
+      const preferredJobId = selectedJob?.id ?? null;
+
+      if (hasJobFilters) {
+        await searchJobs(preferredJobId);
+      } else {
+        await fetchJobs(preferredJobId);
+      }
+    } finally {
+      setJobRefreshing(false);
+    }
+  }
+
   async function updateJob() {
     if (!selectedJob || !canUpdateJob) return;
 
@@ -1515,6 +1553,20 @@ function App() {
         <div className="dashboard-layout">
           <div className="job-list-panel">
             <div className="panel-header">
+              <button
+                type="button"
+                className="job-refresh-button"
+                onClick={refreshJobList}
+                disabled={jobRefreshing}
+                aria-label="Refresh job list"
+                title="Refresh job list"
+              >
+                <RefreshCw
+                  size={18}
+                  aria-hidden="true"
+                  className={jobRefreshing ? "refresh-icon-spinning" : ""}
+                />
+              </button>
               <h2>Job List</h2>
               <button
                 className="primary-button small-button"
@@ -2271,7 +2323,16 @@ function SectionManager({
 }) {
   return (
     <>
-      <h2>{capitalize(type)}</h2>
+      <h2
+        className={
+          ["experience", "project"].includes(type) ? "section-title-with-help" : ""
+        }
+      >
+        {capitalize(type)}
+        {["experience", "project"].includes(type) && (
+          <RagDescriptionHelp sectionName={type} />
+        )}
+      </h2>
 
       {type === "skill" && (
         <div className="csv-import-box">

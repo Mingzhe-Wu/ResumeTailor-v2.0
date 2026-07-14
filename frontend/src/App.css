@@ -879,6 +879,41 @@ label {
   white-space: nowrap;
 }
 
+.panel-header .job-refresh-button {
+  grid-column: 1;
+  justify-self: start;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--primary-strong);
+  box-shadow: var(--shadow-xs);
+}
+
+.panel-header .job-refresh-button:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.refresh-icon-spinning {
+  animation: refresh-icon-spin 800ms linear infinite;
+}
+
+@keyframes refresh-icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .job-filter-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 148px;
@@ -1514,6 +1549,13 @@ label {
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0);
+}
+
+.section-title-with-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .ats-resume {
