@@ -98,7 +98,7 @@ public interface JobMapper {
             updated_at
         FROM jobs
         WHERE user_id = #{userId}
-        ORDER BY created_at DESC, id DESC
+        ORDER BY priority DESC, created_at DESC, id DESC
         """)
     List<Job> findByUserId(Long userId);
 
