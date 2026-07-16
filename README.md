@@ -101,6 +101,45 @@ docker-compose.yml      Full-stack Docker Compose setup
 .env.example            Local environment template
 ```
 
+## Continuous Integration
+
+GitHub Actions validates every push to `main` and every pull request targeting `main`:
+
+- **Backend CI** starts pgvector/PostgreSQL and Redis, runs `backend/mvnw clean verify`, and confirms the Spring Boot JAR is produced.
+- **Frontend CI** uses Node.js 22.16.0, installs the lock-file dependency graph with `npm ci`, runs frontend tests, and creates the Vite production build.
+- **Docker Build Validation** validates `docker-compose.yml` and builds the backend and frontend images from clean contexts.
+
+Equivalent local commands are:
+
+```powershell
+docker compose up -d postgres redis
+cd backend
+.\mvnw.cmd --batch-mode --no-transfer-progress clean verify
+```
+
+```powershell
+cd frontend
+npm ci
+npm test
+npm run build
+```
+
+```powershell
+docker compose config --quiet
+docker compose build backend frontend
+```
+
+CI uses safe placeholder configuration and never requires a real OpenAI key. “Reproducible builds” means repeatable builds from a clean declared environment with pinned runtime versions and locked dependencies; it does not claim byte-identical artifacts.
+
+Maintenance and verification documentation:
+
+- [`docs/CI_TUTORIAL.md`](docs/CI_TUTORIAL.md)
+- [`docs/CI_IMPLEMENTATION_SUMMARY.md`](docs/CI_IMPLEMENTATION_SUMMARY.md)
+- [`docs/CI_USAGE_AND_TROUBLESHOOTING.md`](docs/CI_USAGE_AND_TROUBLESHOOTING.md)
+- [`docs/CI_VERIFICATION_CHECKLIST.md`](docs/CI_VERIFICATION_CHECKLIST.md)
+
+Deployment/CD is not implemented.
+
 ## Quick Start with Docker Compose
 
 Docker Compose is the recommended way to run the full application locally.
@@ -288,6 +327,8 @@ Debug endpoints may exist for local Redis or RAG inspection, but they are not pa
   - Product vision, architecture, implementation status, and milestone roadmap.
 - `docs/AI_Resume_Tailoring_v2.1_Database_Design_SQL_Aligned_Updated.docx`
   - SQL-aligned PostgreSQL schema and relationships.
+- `docs/CI_TUTORIAL.md`, `docs/CI_IMPLEMENTATION_SUMMARY.md`, `docs/CI_USAGE_AND_TROUBLESHOOTING.md`, `docs/CI_VERIFICATION_CHECKLIST.md`
+  - GitHub Actions CI architecture, maintenance, troubleshooting, and verification.
 - Milestone summaries
   - Completed milestone implementation records are stored in the project documentation set or development notes.
 
@@ -309,7 +350,7 @@ Next planned:
 Future work should remain clearly separate from implemented features:
 
 - AWS deployment
-- CI/CD
+- Deployment / CD
 - Chrome extension companion workflow
 - Cover letter generation
 - Interview preparation

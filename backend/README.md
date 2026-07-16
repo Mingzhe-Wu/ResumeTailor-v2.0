@@ -270,7 +270,7 @@ Run tests:
 ./mvnw test
 ```
 
-Note: the repository currently contains only a minimal Spring Boot test class, so automated coverage is limited.
+The suite includes Spring/Flyway/pgvector/Redis integration coverage plus focused JWT, BCrypt, AI quota, and rate-limit tests.
 
 ## Error Handling and Validation
 
@@ -295,7 +295,7 @@ Current error response behavior in the global handler:
 Reasonable next steps based on the current codebase:
 
 - add database migrations and seed scripts
-- add stronger integration and service-level test coverage
+- expand controller, service, and end-to-end test coverage
 - externalize JWT secret and datasource credentials
 - improve OpenAI request/response handling and structured parsing
 - add API documentation such as OpenAPI/Swagger
