@@ -1,6 +1,6 @@
 import EditableResumeSection from "./EditableResumeSection.jsx";
 import EditableText from "./EditableText.jsx";
-import { getResumeSectionKey } from "./resumeUtils.js";
+import { getResumeSectionKey, normalizeBullets } from "./resumeUtils.js";
 
 export default function EditableResumePreview({
   resume,
@@ -25,14 +25,7 @@ export default function EditableResumePreview({
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     : [];
 
-  const contactFields = [
-    ["location", contact.location],
-    ["email", contact.email],
-    ["phone", contact.phone],
-    ["linkedin", contact.linkedin],
-    ["github", contact.github],
-  ];
-  let visibleContactCount = 0;
+  const additionalInfo = normalizeBullets(contact.additionalInfo, { includeEmpty: true });
 
   const updateContact = (field, value) => {
     onChange({
@@ -43,6 +36,30 @@ export default function EditableResumePreview({
       },
     });
   };
+
+  const updateAdditionalInfo = (index, value) => {
+    const nextAdditionalInfo = [...additionalInfo];
+    nextAdditionalInfo[index] = value;
+    updateContact(
+      "additionalInfo",
+      nextAdditionalInfo.map((item) => item.trim()).filter(Boolean)
+    );
+  };
+
+  const contactFields = [
+    ["location", contact.location, "location", (value) => updateContact("location", value)],
+    ["email", contact.email, "email", (value) => updateContact("email", value)],
+    ["phone", contact.phone, "phone", (value) => updateContact("phone", value)],
+    ["linkedin", contact.linkedin, "linkedin", (value) => updateContact("linkedin", value)],
+    ["github", contact.github, "github", (value) => updateContact("github", value)],
+    ...additionalInfo.map((value, index) => [
+      `additional-info-${index}`,
+      value,
+      "additional info",
+      (nextValue) => updateAdditionalInfo(index, nextValue),
+    ]),
+  ];
+  let visibleContactCount = 0;
 
   const updateSummary = (value) => {
     onChange({
@@ -81,7 +98,7 @@ export default function EditableResumePreview({
         </h1>
 
         <p className="ats-contact-line">
-          {contactFields.map(([field, value]) => {
+          {contactFields.map(([field, value, placeholder, onSave]) => {
             const hasValue = String(value || "").trim() !== "";
             // Separators are calculated from non-empty values so exported PDFs
             // do not show orphan bullets for blank editable contact fields.
@@ -102,12 +119,21 @@ export default function EditableResumePreview({
                 )}
                 <EditableText
                   value={value || ""}
-                  placeholder={field}
-                  onSave={(nextValue) => updateContact(field, nextValue)}
+                  placeholder={placeholder}
+                  onSave={onSave}
                 />
               </span>
             );
           })}
+          <button
+            type="button"
+            className="ats-add-bullet-button ats-add-contact-button"
+            onClick={() => updateContact("additionalInfo", [...additionalInfo, ""])}
+            aria-label="Add contact information"
+            title="Add contact information"
+          >
+            +
+          </button>
         </p>
       </header>
 

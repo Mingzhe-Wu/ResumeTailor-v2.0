@@ -167,7 +167,7 @@ export function sanitizeResumeBulletFields(value) {
 
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => {
-      if (["bullets", "details", "description", "relevantCoursework"].includes(key)) {
+      if (["bullets", "details", "description", "relevantCoursework", "additionalInfo"].includes(key)) {
         // Save Resume replaces the whole JSONB document, so recursively clean
         // editor-only empty bullet placeholders before sending it.
         const cleanedBullets = normalizeBullets(item);
