@@ -1354,6 +1354,42 @@ label {
   color: var(--primary-strong);
 }
 
+.resume-top-spacing-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 22px 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.resume-top-spacing-button {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--primary-strong);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.resume-top-spacing-button:hover:not(:disabled),
+.resume-top-spacing-button:focus-visible {
+  border-color: var(--primary);
+  background: var(--surface-blue);
+  outline: none;
+}
+
 .keyword-hints-panel {
   margin: 14px 22px 0;
   border: 1px solid var(--border);

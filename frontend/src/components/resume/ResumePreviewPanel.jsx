@@ -26,10 +26,16 @@ export default function ResumePreviewPanel({
 }) {
   const [resumeOutOfBoundary, setResumeOutOfBoundary] = useState(false);
   const [resumeContentTopOffset, setResumeContentTopOffset] = useState(0);
+  const [manualTopPaddingAdjustment, setManualTopPaddingAdjustment] = useState(0);
   const [skillKeywords, setSkillKeywords] = useState([]);
   const [keywordHintsLoading, setKeywordHintsLoading] = useState(false);
   const [keywordHintsError, setKeywordHintsError] = useState("");
   const selectedMethodLabel = selectedResumeMethod === "RAG" ? "RAG" : "Normal";
+  const currentTopPadding = Math.max(
+    0,
+    32 + resumeContentTopOffset + manualTopPaddingAdjustment
+  );
+  const appliedTopOffset = currentTopPadding - 32;
   const keywordHints = getKeywordHints(selectedJob?.jobDescription, resumeContent, skillKeywords);
   const coveredKeywordGroups = groupKeywordHintsByCategory(
     keywordHints.filter((hint) => hint.covered)
@@ -104,6 +110,10 @@ export default function ResumePreviewPanel({
       window.removeEventListener("resize", checkResumeBoundary);
     };
   }, [resumeContent, generatedResume?.id, selectedJob?.id, resumePreviewRef]);
+
+  useEffect(() => {
+    setManualTopPaddingAdjustment(0);
+  }, [generatedResume?.id, selectedJob?.id]);
 
   return (
     <div className="resume-preview-panel">
@@ -198,12 +208,33 @@ export default function ResumePreviewPanel({
               onSectionToggle={onSectionToggle}
             />
 
+            <div className="resume-top-spacing-control" aria-label="Resume top spacing">
+              <button
+                type="button"
+                className="resume-top-spacing-button"
+                onClick={() => setManualTopPaddingAdjustment((value) => value - 1)}
+                disabled={currentTopPadding === 0}
+                aria-label="Decrease resume top spacing by 1 pixel"
+              >
+                -
+              </button>
+              <span aria-live="polite">Top: {currentTopPadding}px</span>
+              <button
+                type="button"
+                className="resume-top-spacing-button"
+                onClick={() => setManualTopPaddingAdjustment((value) => value + 1)}
+                aria-label="Increase resume top spacing by 1 pixel"
+              >
+                +
+              </button>
+            </div>
+
             <EditableResumePreview
               resume={resumeContent}
               onChange={onResumeChange}
               resumeRef={resumePreviewRef}
               outOfBoundary={resumeOutOfBoundary}
-              contentTopOffset={resumeContentTopOffset}
+              contentTopOffset={appliedTopOffset}
             />
           </div>
         ) : resumeLoading ? (
