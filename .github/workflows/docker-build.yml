@@ -29,7 +29,7 @@ jobs:
   compose-build:
     name: Validate Compose and build application images
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       POSTGRES_DB: resume_tailor_ci
       POSTGRES_USER: ci_user

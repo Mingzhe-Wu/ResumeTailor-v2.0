@@ -6,9 +6,12 @@ COPY pom.xml .
 COPY .mvn .mvn
 COPY mvnw mvnw
 COPY mvnw.cmd mvnw.cmd
+
+RUN chmod +x mvnw && ./mvnw --batch-mode dependency:go-offline
+
 COPY src src
 
-RUN chmod +x mvnw && ./mvnw --batch-mode --no-transfer-progress -DskipTests package
+RUN ./mvnw --batch-mode -DskipTests package
 
 FROM eclipse-temurin:17-jre
 
