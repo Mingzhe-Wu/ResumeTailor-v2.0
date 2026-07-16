@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.5-pg16-bookworm
     container_name: resume_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-resume_tailor}
@@ -17,7 +17,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.9-alpine
     container_name: resume_redis
     ports:
       - "${REDIS_PORT:-6379}:6379"

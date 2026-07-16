@@ -1,0 +1,83 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test and build Spring Boot backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.5-pg16-bookworm
+        env:
+          POSTGRES_DB: resume_tailor_ci
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d resume_tailor_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7.4.9-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/resume_tailor_ci
+      SPRING_DATASOURCE_USERNAME: ci_user
+      SPRING_DATASOURCE_PASSWORD: ci_password
+      SPRING_DATA_REDIS_HOST: localhost
+      SPRING_DATA_REDIS_PORT: "6379"
+      JWT_SECRET: ci-only-jwt-secret-that-is-long-enough-for-hs256-tests
+      JWT_EXPIRATION_MS: "3600000"
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      OPENAI_API_KEY: ""
+      OPENAI_MODEL_NAME: ci-no-external-calls
+      AI_QUOTA_DAILY_LIMIT: "5"
+      AI_RATE_LIMIT_RESUME_GENERATE_PER_MINUTE: "3"
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java 17 and Maven cache
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Enable Maven Wrapper execution
+        run: chmod +x mvnw
+
+      - name: Run tests and build executable JAR
+        run: ./mvnw --batch-mode --no-transfer-progress clean verify
+
+      - name: Confirm Spring Boot artifact exists
+        run: test -n "$(find target -maxdepth 1 -name '*.jar' -print -quit)"
