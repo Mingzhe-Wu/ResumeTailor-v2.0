@@ -1717,6 +1717,12 @@ label {
   box-shadow: 0 0 0 2px rgba(36, 93, 143, 0.12);
 }
 
+.ats-editable-link,
+.ats-editable-link:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
 .ats-editable-textarea {
   width: 100%;
   min-height: 56px;
@@ -2832,5 +2838,60 @@ button:disabled {
   .profile-modal {
     width: min(100%, calc(100vw - 24px));
     padding: 22px;
+  }
+}
+
+/*
+ * Browser-native PDF export measures the live paper rectangle and adds a matching
+ * zero-margin @page rule. At full size, 794 CSS px / 96 px per inch = 8.270833in.
+ */
+@media print {
+  html.resume-printing,
+  html.resume-printing body,
+  html.resume-printing #root {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  html.resume-printing body * {
+    visibility: hidden !important;
+  }
+
+  html.resume-printing .resume-print-target,
+  html.resume-printing .resume-print-target * {
+    visibility: visible !important;
+  }
+
+  html.resume-printing .resume-print-target {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: var(--resume-print-width) !important;
+    max-width: none !important;
+    height: var(--resume-print-height) !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: var(--resume-print-padding-top) var(--resume-print-padding-right)
+      var(--resume-print-padding-bottom) var(--resume-print-padding-left) !important;
+    border: 1px solid #d5dce5 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html.resume-printing .resume-print-target.ats-resume-out-of-boundary {
+    border-color: #d5dce5 !important;
+  }
+
+  html.resume-printing .resume-print-target .ats-editable {
+    cursor: default;
   }
 }

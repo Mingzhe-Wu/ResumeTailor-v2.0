@@ -8,7 +8,10 @@ import api, {
   savePromptTemplate,
 } from "./api";
 import ResumePreviewPanel from "./components/resume/ResumePreviewPanel.jsx";
-import { exportResumeElementToPdf } from "./components/resume/resumePdfExport.js";
+import {
+  isResumeElementOutOfBoundary,
+  printResumeElement,
+} from "./components/resume/resumePdfExport.js";
 import {
   buildResumePdfFilename,
   deepClone,
@@ -19,6 +22,13 @@ import "./App.css";
 
 const TOAST_DISPLAY_MS = 3000;
 const TOAST_EXIT_MS = 140;
+
+function showExportInstructions() {
+  window.alert(
+    'In the print dialog, select \u201cSave as PDF\u201d instead of "Microsoft Print to PDF".'
+  );
+}
+
 const RESUME_METHOD_NORMAL = "NORMAL";
 const RESUME_METHOD_RAG = "RAG";
 const PROMPT_TYPES = [
@@ -565,14 +575,19 @@ function App() {
   async function exportResumePdf() {
     if (!resumePreviewRef.current) return;
 
+    if (isResumeElementOutOfBoundary(resumePreviewRef.current)) {
+      showErrorToast("Resume exceeds the page boundary. Hide or edit content before printing.");
+      return;
+    }
+
     try {
-      await exportResumeElementToPdf(
+      showExportInstructions();
+      await printResumeElement(
         resumePreviewRef.current,
         buildResumePdfFilename(selectedJob?.title)
       );
-      showToast("Resume PDF exported.");
-    } catch (err) {
-      showErrorToast("Failed to export resume PDF.");
+    } catch {
+      showErrorToast("Failed to open the resume print dialog.");
     }
   }
 

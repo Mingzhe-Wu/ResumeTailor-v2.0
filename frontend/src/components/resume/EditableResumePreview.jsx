@@ -1,5 +1,6 @@
 import EditableResumeSection from "./EditableResumeSection.jsx";
 import EditableText from "./EditableText.jsx";
+import { getContactHref } from "./resumeLinkUtils.js";
 import { getResumeSectionKey, normalizeBullets } from "./resumeUtils.js";
 
 export default function EditableResumePreview({
@@ -120,6 +121,7 @@ export default function EditableResumePreview({
                 <EditableText
                   value={value || ""}
                   placeholder={placeholder}
+                  href={getContactHref(field, value)}
                   onSave={onSave}
                 />
               </span>

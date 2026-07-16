@@ -1,5 +1,6 @@
 import EditableBulletList from "./EditableBulletList.jsx";
 import EditableText from "./EditableText.jsx";
+import { getProjectHref } from "./resumeLinkUtils.js";
 import {
   appendEmptyBulletField,
   formatDateRange,
@@ -21,6 +22,7 @@ export default function EditableProjectItem({ item, onChange }) {
           <EditableText
             value={name || ""}
             placeholder="Project name"
+            href={getProjectHref(item)}
             onSave={(value) => onChange(updateFirstExistingField(item, ["name", "projectName"], value))}
           />
           <button

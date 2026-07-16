@@ -4,6 +4,74 @@ import { jsPDF } from "jspdf";
 const PDF_CAPTURE_SCALE = 1.5;
 const PDF_TARGET_BYTES = 950 * 1024;
 const PDF_JPEG_QUALITIES = [0.82, 0.74, 0.66, 0.58];
+const PRINT_ROOT_CLASS = "resume-printing";
+const PRINT_TARGET_CLASS = "resume-print-target";
+const PRINT_PAGE_STYLE_ID = "resume-print-page-size";
+const CSS_PIXELS_PER_INCH = 96;
+const PRINT_STYLE_PROPERTIES = [
+  ["--resume-print-width", "width"],
+  ["--resume-print-height", "height"],
+  ["--resume-print-padding-top", "paddingTop"],
+  ["--resume-print-padding-right", "paddingRight"],
+  ["--resume-print-padding-bottom", "paddingBottom"],
+  ["--resume-print-padding-left", "paddingLeft"],
+];
+
+export function isResumeElementOutOfBoundary(element) {
+  return element.scrollHeight > element.clientHeight + 1;
+}
+
+export async function printResumeElement(element, filename) {
+  if (!element) throw new Error("Resume element is required for printing.");
+
+  await document.fonts?.ready;
+
+  const root = document.documentElement;
+  const previousTitle = document.title;
+  const pageStyle = document.createElement("style");
+  const bounds = element.getBoundingClientRect();
+  const computedStyle = window.getComputedStyle(element);
+  const printWidth = bounds.width || element.offsetWidth;
+  const printHeight = bounds.height || element.offsetHeight;
+  let cleanedUp = false;
+
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    root.classList.remove(PRINT_ROOT_CLASS);
+    element.classList.remove(PRINT_TARGET_CLASS, "pdf-exporting", "exporting-pdf");
+    PRINT_STYLE_PROPERTIES.forEach(([property]) => element.style.removeProperty(property));
+    pageStyle.remove();
+    document.title = previousTitle;
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  root.classList.add(PRINT_ROOT_CLASS);
+  element.classList.add(PRINT_TARGET_CLASS, "pdf-exporting", "exporting-pdf");
+  PRINT_STYLE_PROPERTIES.forEach(([property, computedProperty]) => {
+    const value = computedProperty === "width"
+      ? `${printWidth}px`
+      : computedProperty === "height"
+        ? `${printHeight}px`
+        : computedStyle[computedProperty];
+    element.style.setProperty(property, value);
+  });
+  pageStyle.id = PRINT_PAGE_STYLE_ID;
+  pageStyle.textContent = `@page { size: ${printWidth / CSS_PIXELS_PER_INCH}in ${printHeight / CSS_PIXELS_PER_INCH}in; margin: 0; }`;
+  document.head.appendChild(pageStyle);
+  document.title = String(filename || "Resume.pdf").replace(/\.pdf$/i, "");
+  window.addEventListener("afterprint", cleanup, { once: true });
+
+  try {
+    window.print();
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+
+  // Some browsers do not dispatch afterprint when the dialog is cancelled.
+  window.setTimeout(cleanup, 1000);
+}
 
 export async function exportResumeElementToPdf(element, filename) {
   await document.fonts?.ready;
