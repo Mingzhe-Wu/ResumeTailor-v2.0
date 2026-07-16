@@ -68,8 +68,8 @@ public class ResumeService {
     private final RateLimitService rateLimitService;
     private final long resumeGenerateRateLimitPerMinute;
 
-    private static final int EXP_AND_PROJECT_TOP_K = 12;
-    private static final int SKILL_TOP_K = 5;
+    private static final int EXP_AND_PROJECT_TOP_K = 20;
+    private static final int SKILL_TOP_K = 10;
 
     public ResumeService(
             JobMapper jobMapper,
