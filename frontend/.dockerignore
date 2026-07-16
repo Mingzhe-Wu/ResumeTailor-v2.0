@@ -1,5 +1,13 @@
-node_modules
-dist
-.git
+node_modules/
+dist/
+target/
+.git/
+.github/
+.idea/
+.vscode/
+docs/
 .gitignore
 *.log
+.env
+.env.*
+README*

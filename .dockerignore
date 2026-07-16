@@ -1,12 +1,10 @@
-target/
-.idea/
-.vscode/
 .git/
 .github/
 docs/
-node_modules/
+**/node_modules/
+**/target/
+**/dist/
 *.log
 .env
 .env.*
 README*
-HELP.md
