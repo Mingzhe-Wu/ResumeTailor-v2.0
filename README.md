@@ -1,4 +1,4 @@
-# AI ResumeTailor Platform v2.1
+# AI ResumeTailor Platform v2.0
 
 ## Overview
 
