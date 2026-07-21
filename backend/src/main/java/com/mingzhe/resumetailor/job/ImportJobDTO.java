@@ -14,6 +14,10 @@ public class ImportJobDTO {
 
     private String company;
 
+    private String location;
+
+    private String salary;
+
     private String sourceUrl;
 
     private Integer status;

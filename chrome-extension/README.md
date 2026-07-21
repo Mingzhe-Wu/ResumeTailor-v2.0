@@ -56,10 +56,11 @@ The side panel only displays a masked token preview. Manual token entry is inten
 
 1. Start the ResumeTailor backend locally.
 2. Log in from the extension side panel.
-3. Open a job posting page in Chrome, such as a LinkedIn job page that you can already view.
+3. Open a LinkedIn or Indeed job posting page in Chrome that you can already view.
 4. Open the extension side panel.
-5. Confirm the backend URL, extension login state, and default job status.
-6. Click **Import Current Job**.
+5. Select the matching job source.
+6. Confirm the backend URL, extension login state, and default job status.
+7. Click **Import Current Job**.
 
 The extension extracts:
 
@@ -83,16 +84,21 @@ Request body:
 {
   "title": "Page title",
   "company": "Company name",
+  "location": "Job location",
+  "salary": "Salary or hourly rate",
   "sourceUrl": "https://example.com/job",
   "description": "Visible page text",
   "status": 1
 }
 ```
 
-Use **Copy JD to Clipboard** when you want to copy the extracted job description without importing the job into ResumeTailor.
+Use **Copy JD to Clipboard** when you want to copy the extracted job description without importing the job into ResumeTailor. For Indeed, the extension reads `document.body.innerText`, bounds the posting between `Job Post Details` and `Explore other jobs`, parses the summary immediately below `- job post`, and copies only the text following `Full job description`.
 
 ## Current Limitations
 
+- LinkedIn import and copy use the existing LinkedIn extraction behavior.
+- Indeed parsing depends on the visible headings `Job Post Details`, `- job post`, `Full job description`, and `Explore other jobs`.
+- Indeed imports convert the current page's `vjk` (or `jk`) parameter into a canonical `https://www.indeed.com/viewjob?jk=...` source URL. Other onboarding and tracking parameters are discarded.
 - Generic visible text extraction only.
 - No AI parsing yet.
 - LinkedIn search-result URLs are normalized to canonical `/jobs/view/{jobId}` URLs when `currentJobId` is available.

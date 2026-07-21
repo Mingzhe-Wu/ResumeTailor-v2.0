@@ -1,4 +1,5 @@
 const DEFAULT_BACKEND_BASE_URL = "http://localhost:8080";
+const DEFAULT_JOB_SOURCE = "linkedin";
 const MIN_VISIBLE_TEXT_LENGTH = 200;
 
 const backendBaseUrlInput = document.getElementById("backendBaseUrl");
@@ -10,10 +11,13 @@ const jwtTokenDisplay = document.getElementById("jwtTokenDisplay");
 const loginStatusBadge = document.getElementById("loginStatusBadge");
 const importButton = document.getElementById("importButton");
 const copyJdButton = document.getElementById("copyJdButton");
+const jobSourceSelect = document.getElementById("jobSource");
 const defaultJobStatusSelect = document.getElementById("defaultJobStatus");
 const statusMessage = document.getElementById("statusMessage");
 const previewTitle = document.getElementById("previewTitle");
 const previewCompany = document.getElementById("previewCompany");
+const previewLocation = document.getElementById("previewLocation");
+const previewSalary = document.getElementById("previewSalary");
 const previewLength = document.getElementById("previewLength");
 
 document.addEventListener("DOMContentLoaded", restoreSettings);
@@ -23,13 +27,21 @@ loginButton.addEventListener("click", loginToResumeTailor);
 logoutButton.addEventListener("click", clearExtensionToken);
 importButton.addEventListener("click", importCurrentJob);
 copyJdButton.addEventListener("click", copyCurrentJobDescription);
+jobSourceSelect.addEventListener("change", handleJobSourceChange);
 defaultJobStatusSelect.addEventListener("change", saveSettings);
 
 async function restoreSettings() {
-  const settings = await chrome.storage.local.get(["backendBaseUrl", "loginEmail", "jwtToken", "defaultJobStatus"]);
+  const settings = await chrome.storage.local.get([
+    "backendBaseUrl",
+    "loginEmail",
+    "jwtToken",
+    "defaultJobStatus",
+    "jobSource",
+  ]);
   backendBaseUrlInput.value = settings.backendBaseUrl || DEFAULT_BACKEND_BASE_URL;
   loginEmailInput.value = settings.loginEmail || "";
   defaultJobStatusSelect.value = settings.defaultJobStatus || "1";
+  jobSourceSelect.value = normalizeJobSource(settings.jobSource);
   updateTokenDisplay(settings.jwtToken || "");
 }
 
@@ -38,7 +50,18 @@ async function saveSettings() {
     backendBaseUrl: normalizeBackendBaseUrl(backendBaseUrlInput.value),
     loginEmail: loginEmailInput.value.trim(),
     defaultJobStatus: defaultJobStatusSelect.value,
+    jobSource: normalizeJobSource(jobSourceSelect.value),
   });
+}
+
+async function handleJobSourceChange() {
+  await saveSettings();
+
+  if (jobSourceSelect.value === "indeed") {
+    setStatus("Indeed extraction is selected.", "info");
+  } else {
+    setStatus("LinkedIn extraction is selected.", "info");
+  }
 }
 
 async function loginToResumeTailor() {
@@ -145,7 +168,13 @@ async function copyCurrentJobDescription() {
     }
 
     await copyJobDescriptionToClipboard(extracted.description);
-    setStatus("Job description copied to clipboard.", "success");
+    const source = normalizeJobSource(jobSourceSelect.value);
+    setStatus(
+      source === "indeed"
+        ? `Indeed job description copied (${extracted.description.length.toLocaleString()} characters).`
+        : "Job description copied to clipboard.",
+      "success"
+    );
   } catch (error) {
     setStatus(getReadableErrorMessage(error), "error");
   } finally {
@@ -172,11 +201,83 @@ async function extractVisiblePageContent(tabId) {
     throw new Error("Could not read the active page.");
   }
 
+  if (normalizeJobSource(jobSourceSelect.value) === "indeed") {
+    const details = parseIndeedJobPostDetails(extractIndeedJobPostDetails(page.description));
+    return {
+      ...details,
+      sourceUrl: normalizeIndeedSourceUrl(page.sourceUrl),
+    };
+  }
+
   return {
     ...parseLinkedInTitle(page.title),
     sourceUrl: normalizeSourceUrl(page.sourceUrl),
     description: normalizeVisibleText(extractJobDescriptionFromVisibleText(page.description)),
   };
+}
+
+function normalizeJobSource(value) {
+  return value === "indeed" ? "indeed" : DEFAULT_JOB_SOURCE;
+}
+
+function extractIndeedJobPostDetails(value) {
+  const text = String(value || "");
+  const startIndex = findSectionMarkerIndex(text, "Job Post Details");
+  if (startIndex < 0) {
+    throw new Error("Could not find the Indeed 'Job Post Details' section on this page.");
+  }
+
+  const detailsText = text.slice(startIndex);
+  const endIndex = findSectionMarkerIndex(detailsText, "Explore other jobs");
+  if (endIndex < 0) {
+    throw new Error("Could not find the end of the Indeed job details section ('Explore other jobs').");
+  }
+
+  return detailsText.slice(0, endIndex);
+}
+
+function parseIndeedJobPostDetails(value) {
+  const lines = String(value || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.replace(/\u00a0/g, " ").trim())
+    .filter((line) => line && line.toLowerCase() !== "&nbsp;");
+
+  const detailsIndex = findExactLineIndex(lines, "Job Post Details");
+  const jobPostIndex = findExactLineIndex(lines, "- job post", detailsIndex + 1);
+  const descriptionIndex = findExactLineIndex(lines, "Full job description", jobPostIndex + 1);
+
+  if (detailsIndex < 0 || jobPostIndex < 0 || descriptionIndex < 0) {
+    throw new Error("Could not parse the Indeed job headings from the visible page.");
+  }
+
+  const title = lines[detailsIndex + 1] || "";
+  const company = lines[jobPostIndex + 1] || "";
+  const location = lines[jobPostIndex + 2] || "";
+  const salary = normalizeIndeedSalary(lines[jobPostIndex + 3] || "");
+  const description = normalizeVisibleText(lines.slice(descriptionIndex + 1).join("\n"));
+
+  if (!title || !company || !location || !description) {
+    throw new Error("The Indeed job page is missing a title, company, location, or full job description.");
+  }
+
+  return { title, company, location, salary, description };
+}
+
+function findExactLineIndex(lines, marker, startIndex = 0) {
+  const normalizedMarker = marker.toLowerCase();
+  return lines.findIndex(
+    (line, index) => index >= startIndex && line.toLowerCase() === normalizedMarker
+  );
+}
+
+function normalizeIndeedSalary(value) {
+  return String(value || "")
+    .replace(
+      /\s+-\s+(?:full-time|part-time|contract|temporary|internship|per diem|seasonal)(?:\s*,.*)?$/i,
+      ""
+    )
+    .trim();
 }
 
 function extractJobDescriptionFromVisibleText(value) {
@@ -232,7 +333,9 @@ async function sendImportRequest(extracted) {
     body: JSON.stringify({
       title: extracted.title,
       company: extracted.company,
-      sourceUrl: extracted.sourceUrl,
+      location: extracted.location,
+      salary: extracted.salary,
+      ...(extracted.sourceUrl ? { sourceUrl: extracted.sourceUrl } : {}),
       description: extracted.description,
       status: Number(defaultJobStatusSelect.value),
     }),
@@ -256,6 +359,21 @@ function normalizeSourceUrl(value) {
   const match = url.match(/^(https:\/\/www\.linkedin\.com\/jobs\/search-results\/\?currentJobId=\d+)/i);
 
   return match ? match[1].replace("/jobs/search-results/?currentJobId=", "/jobs/view/") : url;
+}
+
+function normalizeIndeedSourceUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    const jobKey = (url.searchParams.get("vjk") || url.searchParams.get("jk") || "").trim();
+
+    if (!/^[a-zA-Z0-9]+$/.test(jobKey)) {
+      return "";
+    }
+
+    return `https://www.indeed.com/viewjob?jk=${encodeURIComponent(jobKey)}`;
+  } catch {
+    return "";
+  }
 }
 
 function parseLinkedInTitle(value) {
@@ -317,6 +435,8 @@ function normalizeVisibleText(value) {
 function updatePreview(extracted) {
   previewTitle.textContent = extracted.title || "Untitled page";
   previewCompany.textContent = extracted.company || "Unknown";
+  previewLocation.textContent = extracted.location || "Not parsed";
+  previewSalary.textContent = extracted.salary || "Not parsed";
   previewLength.textContent = `${extracted.description.length.toLocaleString()} characters`;
 }
 
@@ -359,7 +479,8 @@ function getReadableErrorMessage(error) {
   }
 
   if (error.message.includes("Cannot access")) {
-    return "Chrome blocked access to this page. Reload the extension, then try again on a LinkedIn job page.";
+    const sourceName = normalizeJobSource(jobSourceSelect.value) === "indeed" ? "Indeed" : "LinkedIn";
+    return `Chrome blocked access to this page. Reload the extension, then try again on a ${sourceName} job page.`;
   }
 
   return error.message;

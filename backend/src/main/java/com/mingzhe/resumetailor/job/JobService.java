@@ -20,6 +20,8 @@ public class JobService {
 
     private static final int JOB_TITLE_MAX_LENGTH = 100;
     private static final int JOB_COMPANY_MAX_LENGTH = 100;
+    private static final int JOB_LOCATION_MAX_LENGTH = 100;
+    private static final int JOB_SALARY_MAX_LENGTH = 100;
     private static final int JOB_SOURCE_URL_MAX_LENGTH = 500;
     private static final Pattern LINKEDIN_CURRENT_JOB_URL_PATTERN = Pattern.compile(
             "^https://www\\.linkedin\\.com/jobs/search-results/\\?currentJobId=(\\d+)",
@@ -79,6 +81,8 @@ public class JobService {
         createJobRequest.setUserId(user.getId());
         createJobRequest.setTitle(limitLength(request.getTitle(), JOB_TITLE_MAX_LENGTH));
         createJobRequest.setCompany(resolveImportedCompany(request.getCompany()));
+        createJobRequest.setLocation(limitLength(request.getLocation(), JOB_LOCATION_MAX_LENGTH));
+        createJobRequest.setSalary(limitLength(request.getSalary(), JOB_SALARY_MAX_LENGTH));
         createJobRequest.setSourceUrl(limitLength(normalizeSourceUrl(request.getSourceUrl()), JOB_SOURCE_URL_MAX_LENGTH));
         createJobRequest.setJobDescription(request.getDescription());
         createJobRequest.setStatus(request.getStatus());

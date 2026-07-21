@@ -64,6 +64,11 @@
 
       <section class="panel-section import-section" aria-label="Job import action">
         <h2>Import</h2>
+        <label for="jobSource">Job Source</label>
+        <select id="jobSource">
+          <option value="linkedin">LinkedIn</option>
+          <option value="indeed">Indeed</option>
+        </select>
         <button id="importButton" class="primary-button" type="button">
           Import Current Job
         </button>
@@ -92,6 +97,14 @@
           <div>
             <dt>Company</dt>
             <dd id="previewCompany">Not imported yet</dd>
+          </div>
+          <div>
+            <dt>Location</dt>
+            <dd id="previewLocation">Not imported yet</dd>
+          </div>
+          <div>
+            <dt>Salary</dt>
+            <dd id="previewSalary">Not imported yet</dd>
           </div>
           <div>
             <dt>Text Length</dt>
