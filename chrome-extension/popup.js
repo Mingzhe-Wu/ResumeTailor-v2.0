@@ -59,6 +59,8 @@ async function handleJobSourceChange() {
 
   if (jobSourceSelect.value === "indeed") {
     setStatus("Indeed extraction is selected.", "info");
+  } else if (jobSourceSelect.value === "handshake") {
+    setStatus("Handshake extraction is selected.", "info");
   } else {
     setStatus("LinkedIn extraction is selected.", "info");
   }
@@ -156,6 +158,7 @@ async function copyCurrentJobDescription() {
       throw new Error("No active tab found.");
     }
 
+    const source = normalizeJobSource(jobSourceSelect.value);
     const extracted = await extractVisiblePageContent(tab.id);
     updatePreview(extracted);
 
@@ -168,10 +171,11 @@ async function copyCurrentJobDescription() {
     }
 
     await copyJobDescriptionToClipboard(extracted.description);
-    const source = normalizeJobSource(jobSourceSelect.value);
     setStatus(
       source === "indeed"
         ? `Indeed job description copied (${extracted.description.length.toLocaleString()} characters).`
+        : source === "handshake"
+          ? `Handshake job description copied (${extracted.description.length.toLocaleString()} characters).`
         : "Job description copied to clipboard.",
       "success"
     );
@@ -184,6 +188,20 @@ async function copyCurrentJobDescription() {
 
 async function copyJobDescriptionToClipboard(description) {
   await navigator.clipboard.writeText(description);
+}
+
+async function extractFullVisiblePageText(tabId) {
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => document.body?.innerText || "",
+  });
+
+  const description = normalizeVisibleText(result?.result);
+  if (!description) {
+    throw new Error("Could not read the active page.");
+  }
+
+  return { description };
 }
 
 async function extractVisiblePageContent(tabId) {
@@ -204,8 +222,18 @@ async function extractVisiblePageContent(tabId) {
   if (normalizeJobSource(jobSourceSelect.value) === "indeed") {
     const details = parseIndeedJobPostDetails(extractIndeedJobPostDetails(page.description));
     return {
-      ...details,
+      title: details.title,
+      company: details.company,
+      description: details.description,
       sourceUrl: normalizeIndeedSourceUrl(page.sourceUrl),
+    };
+  }
+
+  if (normalizeJobSource(jobSourceSelect.value) === "handshake") {
+    const details = parseHandshakePage(page.description);
+    return {
+      ...details,
+      sourceUrl: normalizeHandshakeSourceUrl(page.sourceUrl),
     };
   }
 
@@ -217,7 +245,11 @@ async function extractVisiblePageContent(tabId) {
 }
 
 function normalizeJobSource(value) {
-  return value === "indeed" ? "indeed" : DEFAULT_JOB_SOURCE;
+  if (value === "indeed" || value === "handshake") {
+    return value;
+  }
+
+  return DEFAULT_JOB_SOURCE;
 }
 
 function extractIndeedJobPostDetails(value) {
@@ -228,10 +260,13 @@ function extractIndeedJobPostDetails(value) {
   }
 
   const detailsText = text.slice(startIndex);
-  const endIndex = findSectionMarkerIndex(detailsText, "Explore other jobs");
-  if (endIndex < 0) {
-    throw new Error("Could not find the end of the Indeed job details section ('Explore other jobs').");
-  }
+  const exploreOtherJobsIndex = findSectionMarkerIndex(detailsText, "Explore other jobs");
+  const reportJobIndex = findSectionMarkerIndex(detailsText, "Report job");
+  const endIndex = exploreOtherJobsIndex >= 0
+    ? exploreOtherJobsIndex
+    : reportJobIndex >= 0
+      ? reportJobIndex
+      : detailsText.length;
 
   return detailsText.slice(0, endIndex);
 }
@@ -278,6 +313,54 @@ function normalizeIndeedSalary(value) {
       ""
     )
     .trim();
+}
+
+function parseHandshakePage(value) {
+  const lines = String(value || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.replace(/\u00a0/g, " ").trim())
+    .filter(Boolean);
+
+  const descriptionIndex = findExactLineIndex(lines, "Job description");
+  const qualificationsIndex = findExactLineIndex(
+    lines,
+    "What they're looking for",
+    descriptionIndex + 1
+  );
+  const aboutEmployerIndex = findExactLineIndex(
+    lines,
+    "About the employer",
+    qualificationsIndex + 1
+  );
+  let postedIndex = -1;
+  for (let index = descriptionIndex - 1; index >= 0; index -= 1) {
+    if (/^Posted\b/i.test(lines[index])) {
+      postedIndex = index;
+      break;
+    }
+  }
+
+  if (
+    descriptionIndex < 0 ||
+    qualificationsIndex < 0 ||
+    aboutEmployerIndex < 0 ||
+    postedIndex < 1
+  ) {
+    throw new Error("Could not parse the Handshake job headings from the visible page.");
+  }
+
+  const title = lines[postedIndex - 1] || "";
+  const company = lines[aboutEmployerIndex + 1] || "";
+  const description = normalizeVisibleText(
+    lines.slice(descriptionIndex + 1, qualificationsIndex).join("\n")
+  );
+
+  if (!title || !company || !description) {
+    throw new Error("The Handshake job page is missing a title, company, or job description.");
+  }
+
+  return { title, company, description };
 }
 
 function extractJobDescriptionFromVisibleText(value) {
@@ -333,8 +416,8 @@ async function sendImportRequest(extracted) {
     body: JSON.stringify({
       title: extracted.title,
       company: extracted.company,
-      location: extracted.location,
-      salary: extracted.salary,
+      ...(extracted.location ? { location: extracted.location } : {}),
+      ...(extracted.salary ? { salary: extracted.salary } : {}),
       ...(extracted.sourceUrl ? { sourceUrl: extracted.sourceUrl } : {}),
       description: extracted.description,
       status: Number(defaultJobStatusSelect.value),
@@ -371,6 +454,22 @@ function normalizeIndeedSourceUrl(value) {
     }
 
     return `https://www.indeed.com/viewjob?jk=${encodeURIComponent(jobKey)}`;
+  } catch {
+    return "";
+  }
+}
+
+function normalizeHandshakeSourceUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    const jobIdMatch = url.pathname.match(/^\/(?:job-search|jobs|public\/jobs)\/(\d+)(?:\/|$)/i);
+    const jobId = jobIdMatch?.[1] || "";
+
+    if (!jobId) {
+      return "";
+    }
+
+    return `https://app.joinhandshake.com/public/jobs/${jobId}?utm_source=web&utm_campaign=job_share&utm_medium=copy_link&utm_content=stu-copy_link-job_page`;
   } catch {
     return "";
   }
@@ -479,7 +578,12 @@ function getReadableErrorMessage(error) {
   }
 
   if (error.message.includes("Cannot access")) {
-    const sourceName = normalizeJobSource(jobSourceSelect.value) === "indeed" ? "Indeed" : "LinkedIn";
+    const source = normalizeJobSource(jobSourceSelect.value);
+    const sourceName = source === "indeed"
+      ? "Indeed"
+      : source === "handshake"
+        ? "Handshake"
+        : "LinkedIn";
     return `Chrome blocked access to this page. Reload the extension, then try again on a ${sourceName} job page.`;
   }
 

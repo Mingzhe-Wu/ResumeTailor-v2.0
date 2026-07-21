@@ -56,7 +56,7 @@ The side panel only displays a masked token preview. Manual token entry is inten
 
 1. Start the ResumeTailor backend locally.
 2. Log in from the extension side panel.
-3. Open a LinkedIn or Indeed job posting page in Chrome that you can already view.
+3. Open a LinkedIn, Indeed, or Handshake job posting page in Chrome that you can already view.
 4. Open the extension side panel.
 5. Select the matching job source.
 6. Confirm the backend URL, extension login state, and default job status.
@@ -92,12 +92,15 @@ Request body:
 }
 ```
 
-Use **Copy JD to Clipboard** when you want to copy the extracted job description without importing the job into ResumeTailor. For Indeed, the extension reads `document.body.innerText`, bounds the posting between `Job Post Details` and `Explore other jobs`, parses the summary immediately below `- job post`, and copies only the text following `Full job description`.
+Use **Copy JD to Clipboard** when you want to copy the extracted description without importing the job into ResumeTailor. LinkedIn keeps its existing job-description extraction. Indeed Copy and Import use the same structured extraction: stop before `Explore other jobs` when present, otherwise stop before `Report job`, and otherwise keep the remaining text through the end of the page.
 
 ## Current Limitations
 
 - LinkedIn import and copy use the existing LinkedIn extraction behavior.
-- Indeed parsing depends on the visible headings `Job Post Details`, `- job post`, `Full job description`, and `Explore other jobs`.
+- Indeed parsing requires the visible headings `Job Post Details`, `- job post`, and `Full job description`. The optional end markers are `Explore other jobs` and `Report job`.
+- Indeed imports currently omit location and salary because those summary lines are not consistently present across postings.
+- Handshake Copy and Import extract the title immediately before `Posted`, the company immediately after `About the employer`, and the JD between `Job description` and `What they're looking for`.
+- Handshake `/job-search/{id}` URLs are converted to the public `/public/jobs/{id}` sharing URL without carrying search filters into the imported job.
 - Indeed imports convert the current page's `vjk` (or `jk`) parameter into a canonical `https://www.indeed.com/viewjob?jk=...` source URL. Other onboarding and tracking parameters are discarded.
 - Generic visible text extraction only.
 - No AI parsing yet.
