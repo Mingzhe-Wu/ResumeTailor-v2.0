@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ResumeTailor Job Importer",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Import the currently opened job posting page into ResumeTailor.",
   "permissions": [
     "activeTab",

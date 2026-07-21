@@ -16,8 +16,6 @@ const defaultJobStatusSelect = document.getElementById("defaultJobStatus");
 const statusMessage = document.getElementById("statusMessage");
 const previewTitle = document.getElementById("previewTitle");
 const previewCompany = document.getElementById("previewCompany");
-const previewLocation = document.getElementById("previewLocation");
-const previewSalary = document.getElementById("previewSalary");
 const previewLength = document.getElementById("previewLength");
 
 document.addEventListener("DOMContentLoaded", restoreSettings);
@@ -534,8 +532,6 @@ function normalizeVisibleText(value) {
 function updatePreview(extracted) {
   previewTitle.textContent = extracted.title || "Untitled page";
   previewCompany.textContent = extracted.company || "Unknown";
-  previewLocation.textContent = extracted.location || "Not parsed";
-  previewSalary.textContent = extracted.salary || "Not parsed";
   previewLength.textContent = `${extracted.description.length.toLocaleString()} characters`;
 }
 
