@@ -359,6 +359,36 @@ Future work should remain clearly separate from implemented features:
 - DOCX export if prioritized later
 - Multiple LLM provider support
 
+### TODO: Improve RAG Source Selection
+
+The current RAG pipeline retrieves the Top 20 Experience/Project bullet chunks. When many records are similar, these chunks may come from many different sources, leaving the LLM with incomplete Experiences or Projects.
+
+Possible improvement:
+
+1. Retrieve the Top 20 bullet chunks with their pgvector distances.
+2. Group chunks by `source_type` and `source_id`.
+3. Calculate a source-level score using:
+   - the best matching bullet;
+   - smaller contributions from additional matching bullets;
+   - normalized vector distance;
+   - a capped bonus for multiple supporting matches.
+4. Select the Top 4 sources.
+5. Load each selected source with its complete metadata and all original bullets before resume generation.
+
+Possible scoring direction:
+
+```text
+weightedRelevance =
+    0.80 × r1
+- 0.12 × r2
+- 0.05 × r3
+- 0.03 × r4
+
+sourceScore =
+    weightedRelevance
+    / (ε + normalizedBestDistance)
+```
+
 ## Validation Commands
 
 Use these commands to validate the project after changes:

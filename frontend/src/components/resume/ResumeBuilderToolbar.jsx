@@ -1,10 +1,14 @@
-import { getResumeSectionKey, getResumeSectionTitle } from "./resumeUtils.js";
+import {
+  getResumeSectionKey,
+  getResumeSectionTitle,
+  sortResumeSections,
+} from "./resumeUtils.js";
 
 export default function ResumeBuilderToolbar({ resume, onSummaryToggle, onSectionToggle }) {
   if (!resume || typeof resume !== "object") return null;
 
   const sections = Array.isArray(resume.sections)
-    ? [...resume.sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    ? sortResumeSections(resume.sections)
     : [];
 
   return (

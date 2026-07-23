@@ -55,6 +55,44 @@ export function getResumeSectionKey(section) {
   return section.id || `${section.type || "section"}-${section.order ?? ""}-${section.title || ""}`;
 }
 
+const RESUME_SECTION_PRIORITY = {
+  education: 0,
+  experience: 1,
+  project: 2,
+  skill: 3,
+};
+
+function getResumeSectionPriority(section) {
+  const sectionType = String(section?.type || section?.id || "").toLowerCase();
+  const matchedType = Object.keys(RESUME_SECTION_PRIORITY).find((type) =>
+    sectionType.includes(type)
+  );
+
+  return matchedType == null
+    ? Number.MAX_SAFE_INTEGER
+    : RESUME_SECTION_PRIORITY[matchedType];
+}
+
+export function sortResumeSections(sections) {
+  if (!Array.isArray(sections)) return [];
+
+  return [...sections].sort((a, b) => {
+    const priorityDifference =
+      getResumeSectionPriority(a) - getResumeSectionPriority(b);
+
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    if (getResumeSectionPriority(a) === Number.MAX_SAFE_INTEGER) {
+      return (a?.order ?? Number.MAX_SAFE_INTEGER) -
+        (b?.order ?? Number.MAX_SAFE_INTEGER);
+    }
+
+    return 0;
+  });
+}
+
 export function updateFirstExistingField(item, fields, value) {
   const existingField = fields.find((field) =>
     Object.prototype.hasOwnProperty.call(item, field)

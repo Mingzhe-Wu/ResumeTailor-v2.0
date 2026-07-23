@@ -1,7 +1,11 @@
 import EditableResumeSection from "./EditableResumeSection.jsx";
 import EditableText from "./EditableText.jsx";
 import { getContactHref } from "./resumeLinkUtils.js";
-import { getResumeSectionKey, normalizeBullets } from "./resumeUtils.js";
+import {
+  getResumeSectionKey,
+  normalizeBullets,
+  sortResumeSections,
+} from "./resumeUtils.js";
 
 export default function EditableResumePreview({
   resume,
@@ -21,9 +25,9 @@ export default function EditableResumePreview({
 
   const contact = resume.contact || {};
   const sections = Array.isArray(resume.sections)
-    ? [...resume.sections]
-        .filter((section) => section.visible !== false)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    ? sortResumeSections(
+        resume.sections.filter((section) => section.visible !== false)
+      )
     : [];
 
   const additionalInfo = normalizeBullets(contact.additionalInfo, { includeEmpty: true });
