@@ -48,9 +48,9 @@ function ResumeGenerationHelp({ className = "" }) {
       </button>
       <div className="resume-method-tooltip" role="tooltip">
         <strong>Normal</strong>
-        <p>Best for most users and early drafts. AI uses your full profile to organize, expand, compress, and shape a polished resume.</p>
+        <p>Best for most users and early drafts. AI uses your full profile to evaluate all available experience, projects, and skills, then organizes and rewrites them into a polished, tailored resume.</p>
         <strong>RAG</strong>
-        <p>Best when factual grounding and JD-specific evidence selection matter more than creative rewriting. Works best when your profile already contains many detailed, well-written bullets.</p>
+        <p>Best for large, detailed profiles. AI retrieves only the evidence most relevant to the target job before generating, improving focus while reducing prompt size, generation latency, and cost as your profile grows.</p>
       </div>
     </div>
   );
@@ -1630,9 +1630,16 @@ function App() {
             {jobError && <p className="error-text">{jobError}</p>}
 
             {jobs.length === 0 ? (
-              <p className="empty-text">
-                {hasJobFilters ? "No jobs found." : "No jobs yet. Add your first job."}
-              </p>
+              <div className="job-list-empty-state resume-empty-state">
+                {hasJobFilters ? (
+                  <p>No jobs found.</p>
+                ) : (
+                  <>
+                    <h3>No jobs yet.</h3>
+                    <p>Add your first job.</p>
+                  </>
+                )}
+              </div>
             ) : (
               jobs.map((job) => {
                 const statusLabel = statusMap[job.status] || "Unknown";
@@ -1810,8 +1817,8 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div className="empty-detail">
-                <h2>No job selected</h2>
+              <div className="empty-detail resume-empty-state">
+                <h3>No job selected</h3>
                 <p>Add or select a job to view details.</p>
               </div>
             )}
@@ -2158,7 +2165,18 @@ function App() {
                 &times;
               </button>
 
-              <h2>Add {capitalize(sectionAddType)}</h2>
+              <h2
+                className={
+                  ["experience", "project"].includes(sectionAddType)
+                    ? "section-title-with-help"
+                    : ""
+                }
+              >
+                Add {capitalize(sectionAddType)}
+                {["experience", "project"].includes(sectionAddType) && (
+                  <RagDescriptionHelp sectionName={sectionAddType} />
+                )}
+              </h2>
 
               {sectionError && <p className="error-text">{sectionError}</p>}
 

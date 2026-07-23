@@ -25,16 +25,12 @@ export default function ResumePreviewPanel({
   resumePreviewRef,
 }) {
   const [resumeOutOfBoundary, setResumeOutOfBoundary] = useState(false);
-  const [resumeContentTopOffset, setResumeContentTopOffset] = useState(0);
   const [manualTopPaddingAdjustment, setManualTopPaddingAdjustment] = useState(0);
   const [skillKeywords, setSkillKeywords] = useState([]);
   const [keywordHintsLoading, setKeywordHintsLoading] = useState(false);
   const [keywordHintsError, setKeywordHintsError] = useState("");
   const selectedMethodLabel = selectedResumeMethod === "RAG" ? "RAG" : "Normal";
-  const currentTopPadding = Math.max(
-    0,
-    32 + resumeContentTopOffset + manualTopPaddingAdjustment
-  );
+  const currentTopPadding = Math.max(0, 32 + manualTopPaddingAdjustment);
   const appliedTopOffset = currentTopPadding - 32;
   const keywordHints = getKeywordHints(selectedJob?.jobDescription, resumeContent, skillKeywords);
   const coveredKeywordGroups = groupKeywordHintsByCategory(
@@ -78,7 +74,6 @@ export default function ResumePreviewPanel({
   useEffect(() => {
     if (!selectedJob) {
       setResumeOutOfBoundary(false);
-      setResumeContentTopOffset(0);
       return;
     }
 
@@ -86,20 +81,12 @@ export default function ResumePreviewPanel({
       const resumeElement = resumePreviewRef.current;
       if (!resumeElement) {
         setResumeOutOfBoundary(false);
-        setResumeContentTopOffset(0);
         return;
       }
-
-      const baseTopPadding = 32;
-      const minTopPadding = 20;
-      const overflowAmount = Math.max(0, resumeElement.scrollHeight - resumeElement.clientHeight);
-      const availableShift = Math.max(0, baseTopPadding - minTopPadding);
-      const nextTopOffset = -Math.min(availableShift, overflowAmount);
 
       // The preview is a fixed paper rectangle; overflow warning tells users
       // when exported content may extend beyond the visible resume page.
       setResumeOutOfBoundary(resumeElement.scrollHeight > resumeElement.clientHeight + 1);
-      setResumeContentTopOffset(nextTopOffset);
     };
 
     const frameId = requestAnimationFrame(checkResumeBoundary);
@@ -169,7 +156,7 @@ export default function ResumePreviewPanel({
 
         {!selectedJob ? (
           <div className="resume-empty-state">
-            <h3>Select a job</h3>
+            <h3>No job selected</h3>
             <p>Select a job to view or generate a resume.</p>
           </div>
         ) : resumeGenerating ? (

@@ -1258,6 +1258,13 @@ label {
   line-height: 1.5;
 }
 
+.job-list-panel > .job-list-empty-state,
+.job-detail-panel > .empty-detail {
+  width: 100%;
+  margin: 0;
+  align-self: stretch;
+}
+
 .resume-error-state {
   border-color: rgba(180, 35, 24, 0.25);
   background: #fff7f7;
