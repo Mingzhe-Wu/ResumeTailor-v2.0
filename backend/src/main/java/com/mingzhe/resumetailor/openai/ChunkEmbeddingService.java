@@ -39,6 +39,8 @@ public class ChunkEmbeddingService {
             throw new IllegalArgumentException("User id cannot be null.");
         }
 
+        chunkMapper.markIncompatibleReadyChunksPending(userId, EMBEDDING_MODEL);
+
         List<ProfileEmbeddingChunk> pendingChunks =
                 chunkMapper.findByUserIdAndStatus(
                         userId,

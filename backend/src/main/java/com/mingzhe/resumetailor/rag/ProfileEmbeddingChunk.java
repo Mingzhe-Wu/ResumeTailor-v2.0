@@ -18,6 +18,8 @@ public class ProfileEmbeddingChunk {
 
     private Long sourceId;
 
+    private String chunkKey;
+
     private String contentText;
 
     private float[] embedding;

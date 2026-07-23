@@ -11,9 +11,21 @@ import com.mingzhe.resumetailor.project.ProjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 @Service
 public class ProfileEmbeddingChunkService {
@@ -47,22 +59,17 @@ public class ProfileEmbeddingChunkService {
             Long sourceId,
             String bulletText
     ) {
-        // Chunks are source-owned snapshots. Rebuild a source's chunks whenever
-        // its bullets change so stale embeddings cannot be retrieved later.
-        profileEmbeddingChunkMapper.deleteByUserAndSource(userId, sourceType, sourceId);
-
         List<String> bullets = bulletChunkParser.parseBullets(bulletText);
+        Map<String, Integer> occurrencesByHash = new HashMap<>();
+        List<DesiredChunk> desiredChunks = new ArrayList<>();
 
         for (String bullet : bullets) {
-            ProfileEmbeddingChunk chunk = new ProfileEmbeddingChunk();
-            chunk.setUserId(userId);
-            chunk.setSourceType(sourceType);
-            chunk.setSourceId(sourceId);
-            chunk.setContentText(bullet);
-            chunk.setEmbeddingStatus(EmbeddingStatus.PENDING);
-
-            profileEmbeddingChunkMapper.insert(chunk);
+            String contentHash = contentHash(bullet);
+            int occurrence = occurrencesByHash.merge(contentHash, 1, Integer::sum) - 1;
+            desiredChunks.add(new DesiredChunk(bulletChunkKey(contentHash, occurrence), bullet));
         }
+
+        syncDesiredChunks(userId, sourceType, sourceId, desiredChunks);
     }
 
     @Transactional
@@ -95,57 +102,51 @@ public class ProfileEmbeddingChunkService {
 
     @Transactional
     public void syncSkillChunks(Long userId, Long profileId) {
-        // Skills are embedded by category instead of individual rows so retrieval
-        // can curate compact skill groups for the final resume.
-        profileEmbeddingChunkMapper.deleteByUserAndSource(
-                userId,
-                EmbeddingSourceType.SKILL,
-                profileId
-        );
-
         List<Skill> skills = skillMapper.searchSkills(profileId, null, null);
+        Map<String, Set<String>> skillNamesByCategory = new TreeMap<>();
 
-        if (skills == null || skills.isEmpty()) {
-            return;
+        if (skills != null) {
+            for (Skill skill : skills) {
+                if (skill == null || !hasText(skill.getCategory()) || !hasText(skill.getName())) {
+                    continue;
+                }
+
+                String category = skill.getCategory().trim();
+                String name = skill.getName().trim();
+                skillNamesByCategory
+                        .computeIfAbsent(category, ignored -> new TreeSet<>())
+                        .add(name);
+            }
         }
 
-        Map<String, List<Skill>> skillsByCategory = skills.stream()
-                .filter(skill -> skill.getCategory() != null && !skill.getCategory().isBlank())
-                .filter(skill -> skill.getName() != null && !skill.getName().isBlank())
-                .collect(Collectors.groupingBy(Skill::getCategory));
+        List<DesiredChunk> desiredChunks = new ArrayList<>();
 
-        for (Map.Entry<String, List<Skill>> entry : skillsByCategory.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : skillNamesByCategory.entrySet()) {
             String category = entry.getKey();
-
-            String skillNames = entry.getValue().stream()
-                    .map(Skill::getName)
-                    .filter(name -> name != null && !name.isBlank())
-                    .distinct()
-                    .collect(Collectors.joining(", "));
+            String skillNames = String.join(", ", entry.getValue());
 
             if (skillNames.isBlank()) {
                 continue;
             }
 
-            ProfileEmbeddingChunk chunk = new ProfileEmbeddingChunk();
-            chunk.setUserId(userId);
-            chunk.setSourceType(EmbeddingSourceType.SKILL);
-            chunk.setSourceId(profileId);
-            chunk.setContentText(category + ": " + skillNames);
-            chunk.setEmbeddingStatus(EmbeddingStatus.PENDING);
-
-            profileEmbeddingChunkMapper.insert(chunk);
+            desiredChunks.add(new DesiredChunk(skillChunkKey(category), category + ": " + skillNames));
         }
+
+        syncDesiredChunks(userId, EmbeddingSourceType.SKILL, profileId, desiredChunks);
     }
 
     @Transactional
     public void syncAllProfileChunks(Long userId) {
-        // RAG uses lazy full-profile sync at generation time. This keeps edit
-        // operations cheap while still ensuring retrieval sees current evidence.
+        // Reconcile every source at generation time, but preserve unchanged
+        // logical chunks so READY embeddings survive across RAG generations.
         Profile profile = profileMapper.findByUserId(userId);
         if (profile == null || profile.getId() == null) {
+            profileEmbeddingChunkMapper.deleteRagProfileChunksByUserId(userId);
             return;
         }
+
+        profileEmbeddingChunkMapper.deleteOrphanExperienceChunks(userId);
+        profileEmbeddingChunkMapper.deleteOrphanProjectChunks(userId);
 
         List<Experience> experiences = experienceMapper.findByProfileId(profile.getId());
         if (experiences != null) {
@@ -172,6 +173,140 @@ public class ProfileEmbeddingChunkService {
         }
 
         syncSkillChunks(userId, profile.getId());
+    }
+
+    private void syncDesiredChunks(
+            Long userId,
+            EmbeddingSourceType sourceType,
+            Long sourceId,
+            List<DesiredChunk> desiredChunks
+    ) {
+        List<ProfileEmbeddingChunk> existingChunks = profileEmbeddingChunkMapper.findByUserAndSource(
+                userId,
+                sourceType,
+                sourceId
+        );
+        if (existingChunks == null) {
+            existingChunks = List.of();
+        }
+
+        Map<String, Deque<ProfileEmbeddingChunk>> existingByKey = indexExistingChunks(existingChunks, sourceType);
+        Set<Long> retainedIds = new HashSet<>();
+
+        for (DesiredChunk desired : desiredChunks) {
+            Deque<ProfileEmbeddingChunk> candidates = existingByKey.get(desired.chunkKey());
+            ProfileEmbeddingChunk existing = candidates == null ? null : candidates.pollFirst();
+
+            if (existing == null) {
+                insertPendingChunk(userId, sourceType, sourceId, desired);
+                continue;
+            }
+
+            retainedIds.add(existing.getId());
+            if (!desired.chunkKey().equals(existing.getChunkKey())) {
+                profileEmbeddingChunkMapper.setChunkKeyIfMissing(existing.getId(), desired.chunkKey());
+            }
+
+            if (!desired.contentText().equals(existing.getContentText())) {
+                profileEmbeddingChunkMapper.updateContentAndMarkPending(
+                        existing.getId(),
+                        desired.chunkKey(),
+                        desired.contentText()
+                );
+            }
+        }
+
+        for (ProfileEmbeddingChunk existing : existingChunks) {
+            if (!retainedIds.contains(existing.getId())) {
+                profileEmbeddingChunkMapper.deleteById(existing.getId());
+            }
+        }
+    }
+
+    private Map<String, Deque<ProfileEmbeddingChunk>> indexExistingChunks(
+            List<ProfileEmbeddingChunk> existingChunks,
+            EmbeddingSourceType sourceType
+    ) {
+        Map<String, Deque<ProfileEmbeddingChunk>> existingByKey = new LinkedHashMap<>();
+        Map<String, Integer> bulletOccurrencesByHash = new HashMap<>();
+
+        for (ProfileEmbeddingChunk existing : existingChunks) {
+            String key = existing.getChunkKey();
+            if (!hasText(key)) {
+                key = legacyChunkKey(existing, sourceType, bulletOccurrencesByHash);
+            }
+            if (!hasText(key)) {
+                continue;
+            }
+            existingByKey.computeIfAbsent(key, ignored -> new ArrayDeque<>()).add(existing);
+        }
+
+        return existingByKey;
+    }
+
+    private String legacyChunkKey(
+            ProfileEmbeddingChunk existing,
+            EmbeddingSourceType sourceType,
+            Map<String, Integer> bulletOccurrencesByHash
+    ) {
+        if (!hasText(existing.getContentText())) {
+            return null;
+        }
+
+        if (sourceType == EmbeddingSourceType.EXPERIENCE || sourceType == EmbeddingSourceType.PROJECT) {
+            String hash = contentHash(existing.getContentText());
+            int occurrence = bulletOccurrencesByHash.merge(hash, 1, Integer::sum) - 1;
+            return bulletChunkKey(hash, occurrence);
+        }
+
+        if (sourceType == EmbeddingSourceType.SKILL) {
+            int separatorIndex = existing.getContentText().lastIndexOf(": ");
+            if (separatorIndex > 0) {
+                return skillChunkKey(existing.getContentText().substring(0, separatorIndex).trim());
+            }
+        }
+
+        return null;
+    }
+
+    private void insertPendingChunk(
+            Long userId,
+            EmbeddingSourceType sourceType,
+            Long sourceId,
+            DesiredChunk desired
+    ) {
+        ProfileEmbeddingChunk chunk = new ProfileEmbeddingChunk();
+        chunk.setUserId(userId);
+        chunk.setSourceType(sourceType);
+        chunk.setSourceId(sourceId);
+        chunk.setChunkKey(desired.chunkKey());
+        chunk.setContentText(desired.contentText());
+        chunk.setEmbeddingStatus(EmbeddingStatus.PENDING);
+        profileEmbeddingChunkMapper.insert(chunk);
+    }
+
+    private String bulletChunkKey(String contentHash, int occurrence) {
+        return "bullet:" + contentHash + ":" + occurrence;
+    }
+
+    private String skillChunkKey(String category) {
+        return "skill:" + contentHash(category.trim());
+    }
+
+    private String contentHash(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(content.trim().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable.", e);
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private record DesiredChunk(String chunkKey, String contentText) {
     }
 
 }
