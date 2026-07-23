@@ -38,7 +38,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Coordinates resume persistence, AI generation, dirty-state validation, and
@@ -70,6 +73,8 @@ public class ResumeService {
 
     private static final int EXP_AND_PROJECT_TOP_K = 20;
     private static final int SKILL_TOP_K = 10;
+    private static final DateTimeFormatter RESUME_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
 
     public ResumeService(
             JobMapper jobMapper,
@@ -816,8 +821,7 @@ public class ResumeService {
             appendIfPresent(sb, "  Company: ", exp.getCompanyName());
             appendIfPresent(sb, "  Position: ", exp.getPosition());
             appendIfPresent(sb, "  Location: ", exp.getLocation());
-            appendIfPresent(sb, "  Start Date: ", exp.getStartDate());
-            appendIfPresent(sb, "  End Date: ", exp.getEndDate());
+            appendResumeDates(sb, exp.getStartDate(), exp.getEndDate());
             appendIfPresent(sb, "  Description: ", exp.getDescription());
 
             sb.append("\\n");
@@ -841,6 +845,7 @@ public class ResumeService {
             appendIfPresent(sb, "  School: ", edu.getSchoolName());
             appendIfPresent(sb, "  Degree: ", edu.getDegree());
             appendIfPresent(sb, "  Major: ", edu.getMajor());
+            appendResumeDates(sb, edu.getStartDate(), edu.getEndDate());
             appendIfPresent(sb, "  GPA: ", edu.getGpa());
             appendIfPresent(sb, "  Relevant Coursework: ", edu.getRelevantCoursework());
 
@@ -864,8 +869,7 @@ public class ResumeService {
 
             appendIfPresent(sb, "  Project Name: ", project.getProjectName());
             appendIfPresent(sb, "  Tech Stack: ", project.getTechStack());
-            appendIfPresent(sb, "  Start Date: ", project.getStartDate());
-            appendIfPresent(sb, "  End Date: ", project.getEndDate());
+            appendResumeDates(sb, project.getStartDate(), project.getEndDate());
             appendIfPresent(sb, "  Description: ", project.getDescription());
 
             sb.append("\\n");
@@ -907,6 +911,22 @@ public class ResumeService {
     private void appendBlockIfPresent(StringBuilder sb, String label, Object value) {
         if (value != null && hasText(String.valueOf(value))) {
             sb.append(label).append("\n").append(value).append("\n");
+        }
+    }
+
+    private void appendResumeDates(StringBuilder sb, LocalDate startDate, LocalDate endDate) {
+        appendIfPresent(
+                sb,
+                "  Start Date: ",
+                startDate == null ? null : startDate.format(RESUME_DATE_FORMATTER)
+        );
+
+        if (startDate != null || endDate != null) {
+            appendIfPresent(
+                    sb,
+                    "  End Date: ",
+                    endDate == null ? "Present" : endDate.format(RESUME_DATE_FORMATTER)
+            );
         }
     }
 
