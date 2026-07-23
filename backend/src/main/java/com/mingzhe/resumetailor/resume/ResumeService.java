@@ -585,6 +585,8 @@ public class ResumeService {
                 // Validate the model output before persisting so failed or
                 // malformed completions never become the latest resume version.
                 validateGeneratedResume(aiResponse.getContent());
+                JsonNode parsedContent = objectMapper.readTree(aiResponse.getContent());
+                aiResponse.setContent(objectMapper.writeValueAsString(parsedContent));
 
                 log.info("LLM attempt {} succeeded", attempt);
                 return aiResponse;

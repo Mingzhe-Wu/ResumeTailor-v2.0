@@ -1,10 +1,13 @@
 package com.mingzhe.resumetailor.openai;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -21,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 public class OpenAiResumeService {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiResumeService.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     // Keep the API key outside application config files and Docker images.
     private final String apiKey = System.getenv("OPENAI_API_KEY");
@@ -45,21 +49,7 @@ public class OpenAiResumeService {
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
 
-            String safePrompt = prompt
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\r", "\\r")
-                    .replace("\n", "\\n")
-                    .replace("\t", "\\t");
-
-            String body = """
-            {
-              "model": "%s",
-              "messages": [
-                {"role": "user", "content": "%s"}
-              ]
-            }
-            """.formatted(modelName, safePrompt);
+            String body = buildRequestBody(prompt);
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.getBytes(StandardCharsets.UTF_8));
@@ -95,8 +85,7 @@ public class OpenAiResumeService {
                 throw new RuntimeException("OpenAI API call failed with status code: " + statusCode);
             }
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode root = OBJECT_MAPPER.readTree(responseBody);
 
             OpenAiResumeResponse resumeResponse = new OpenAiResumeResponse();
             resumeResponse.setContent(root.path("choices")
@@ -121,6 +110,32 @@ public class OpenAiResumeService {
             response.setContent("AI call failed");
             return response;
         }
+    }
+
+    String buildRequestBody(String prompt) throws JsonProcessingException {
+        ObjectNode body = OBJECT_MAPPER.createObjectNode();
+        body.put("model", modelName);
+        body.put("reasoning_effort", "low");
+        body.put("max_completion_tokens", 3072);
+
+        ArrayNode messages = body.putArray("messages");
+        ObjectNode userMessage = messages.addObject();
+        userMessage.put("role", "user");
+        userMessage.put("content", prompt);
+
+        ObjectNode responseFormat = body.putObject("response_format");
+        responseFormat.put("type", "json_schema");
+
+        ObjectNode jsonSchema = responseFormat.putObject("json_schema");
+        jsonSchema.put("name", "tailored_resume");
+        jsonSchema.put(
+                "description",
+                "A tailored ATS resume with contact information, an optional visible summary, and selected resume sections."
+        );
+        jsonSchema.put("strict", true);
+        jsonSchema.set("schema", ResumeOutputJsonSchema.create(OBJECT_MAPPER));
+
+        return OBJECT_MAPPER.writeValueAsString(body);
     }
 
     private Integer readOptionalInt(JsonNode node, String primaryField, String fallbackField) {
