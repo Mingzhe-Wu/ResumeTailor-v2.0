@@ -4,31 +4,37 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Component
 public class BulletChunkParser {
 
-    public List<String> parseBullets(String text) {
-        List<String> bullets = new ArrayList<>();
+    private static final Pattern LINE_BREAK_PATTERN = Pattern.compile("\\R");
 
-        if (text == null || text.isBlank()) {
-            return bullets;
+    public List<String> parseBullets(String text) {
+        String normalizedDescription = text == null ? "" : text.trim();
+
+        if (normalizedDescription.isEmpty()) {
+            return List.of();
         }
 
-        String[] lines = text.split("\\R");
+        String[] rawChunks;
+        if (normalizedDescription.contains("*")) {
+            rawChunks = normalizedDescription.split("\\*", -1);
+        } else if (LINE_BREAK_PATTERN.matcher(normalizedDescription).find()) {
+            rawChunks = LINE_BREAK_PATTERN.split(normalizedDescription, -1);
+        } else {
+            rawChunks = new String[]{normalizedDescription};
+        }
 
-        for (String line : lines) {
-            String trimmed = line.trim();
-
-            if (trimmed.startsWith("*")) {
-                String bullet = trimmed.substring(1).trim();
-
-                if (!bullet.isBlank()) {
-                    bullets.add(bullet);
-                }
+        List<String> chunks = new ArrayList<>();
+        for (String rawChunk : rawChunks) {
+            String normalizedChunk = rawChunk.trim();
+            if (!normalizedChunk.isEmpty()) {
+                chunks.add(normalizedChunk);
             }
         }
 
-        return bullets;
+        return chunks;
     }
 }
