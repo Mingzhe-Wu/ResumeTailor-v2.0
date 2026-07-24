@@ -2,6 +2,7 @@ package com.mingzhe.resumetailor.job;
 
 import com.mingzhe.resumetailor.exceptions.BadRequestException;
 import com.mingzhe.resumetailor.exceptions.ResourceNotFoundException;
+import com.mingzhe.resumetailor.exceptions.TooManyRequestsException;
 import com.mingzhe.resumetailor.resume.ResumeMapper;
 import com.mingzhe.resumetailor.user.User;
 import com.mingzhe.resumetailor.user.UserMapper;
@@ -31,11 +32,18 @@ public class JobService {
     private final JobMapper jobMapper;
     private final UserMapper userMapper;
     private final ResumeMapper resumeMapper;
+    private final JobImportDeduplicationService jobImportDeduplicationService;
 
-    public JobService(JobMapper jobMapper, UserMapper userMapper, ResumeMapper resumeMapper) {
+    public JobService(
+            JobMapper jobMapper,
+            UserMapper userMapper,
+            ResumeMapper resumeMapper,
+            JobImportDeduplicationService jobImportDeduplicationService
+    ) {
         this.jobMapper = jobMapper;
         this.userMapper = userMapper;
         this.resumeMapper = resumeMapper;
+        this.jobImportDeduplicationService = jobImportDeduplicationService;
     }
 
     public Job createJob(CreateJobDTO request) {
@@ -87,7 +95,26 @@ public class JobService {
         createJobRequest.setJobDescription(request.getDescription());
         createJobRequest.setStatus(request.getStatus());
 
-        return createJob(createJobRequest);
+        Long userId = user.getId();
+        String company = createJobRequest.getCompany();
+        String title = createJobRequest.getTitle();
+        boolean acquired = jobImportDeduplicationService.tryAcquire(userId, company, title);
+        if (!acquired) {
+            throw new TooManyRequestsException(
+                    "This job was already imported recently. Please wait a minute and try again."
+            );
+        }
+
+        try {
+            return createJob(createJobRequest);
+        } catch (RuntimeException ex) {
+            try {
+                jobImportDeduplicationService.release(userId, company, title);
+            } catch (RuntimeException releaseException) {
+                ex.addSuppressed(releaseException);
+            }
+            throw ex;
+        }
     }
 
     public List<Job> fetchJobsByUserId(Long userId) {

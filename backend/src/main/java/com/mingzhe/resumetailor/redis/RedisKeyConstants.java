@@ -39,6 +39,10 @@ public class RedisKeyConstants {
         return "lock:resume-generate:user:" + userId + ":job:" + jobId + ":method:" + method;
     }
 
+    public static String jobImportDeduplicationKey(Long userId, String jobFingerprint) {
+        return "dedup:job-import:user:" + userId + ":job:" + jobFingerprint;
+    }
+
     private static final DateTimeFormatter MINUTE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 

@@ -33,6 +33,15 @@ public class RedisCacheService {
         }
     }
 
+    public Boolean setIfAbsent(String key, String value, Duration ttl) {
+        try {
+            return stringRedisTemplate.opsForValue().setIfAbsent(key, value, ttl);
+        } catch (Exception e) {
+            log.error("Failed to set Redis key if absent: {}", key, e);
+            throw e;
+        }
+    }
+
     public void set(String key, String value) {
         try {
             stringRedisTemplate.opsForValue().set(key, value);
